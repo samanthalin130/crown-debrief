@@ -1,0 +1,18 @@
+{
+  "name": "crown-debrief",
+  "version": "0.1.0",
+  "description": "End-of-day brain data debrief and an adaptive guide for the Neurosity Crown. Runs with zero dependencies.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "sample": "node scripts/make-sample-data.js",
+    "index": "node scripts/build-index.js",
+    "test": "node test/run-tests.js",
+    "log": "node collector/logger.js",
+    "log:live": "MODE=live node collector/logger.js"
+  },
+  "optionalDependencies": {
+    "@neurosity/sdk": "^7.0.0",
+    "dotenv": "^16.4.5"
+  }
+}

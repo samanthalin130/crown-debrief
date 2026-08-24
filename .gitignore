@@ -1,0 +1,6 @@
+node_modules/
+.env
+data/*.csv
+notes/*.jsonl
+web/search-index.json
+.DS_Store
