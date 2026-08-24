@@ -171,6 +171,69 @@ console.log("\nguide");
   });
 }
 
+console.log("\nvocabulary");
+{
+  const { describe, deltaPhrase, VOCAB, MIN_SESSIONS_FOR_BASELINE } = await import("../core/vocab.js");
+  t("one fixed scale, five words", () => eq(VOCAB.length, 5));
+  t("never says good or bad", () => ok(!VOCAB.some((v) => /good|bad|poor|excellent|optimal/i.test(v.word)), "found a judgement word"));
+  t("maps z-scores to the right words", () => {
+    eq(describe(2).word, "Well above usual");
+    eq(describe(0.8).word, "Above usual");
+    eq(describe(0).word, "Typical");
+    eq(describe(-0.9).word, "Below usual");
+    eq(describe(-3).word, "Well below usual");
+  });
+  t("refuses to describe without a baseline", () => eq(describe(2, false).word, "Not enough data yet"));
+  t("refuses to describe a non-number", () => eq(describe(NaN, true).word, "Not enough data yet"));
+  t("delta phrase reads naturally", () => {
+    ok(deltaPhrase(22 * 60000, true, "Friday").includes("+22 min"));
+    ok(deltaPhrase(-90 * 60000, true).includes("1h 30m"));
+    ok(/about the same/.test(deltaPhrase(60000, true)));
+  });
+  t("no delta phrase without a baseline", () => eq(deltaPhrase(999999, false), null));
+  t("baseline needs ten sessions", () => eq(MIN_SESSIONS_FOR_BASELINE, 10));
+}
+
+console.log("\nbaseline store");
+{
+  const { buildBaseline, addHourlyNorms, zFor, usualRange, sessionMetrics } = await import("../core/baseline.js");
+  const all = readdirSync(join(ROOT, "data")).filter((f) => f.endsWith(".csv"))
+    .map((f) => analyse(parseCsv(readFileSync(join(ROOT, "data", f), "utf8")).rows)).filter((x) => x.ok);
+
+  t("has enough sample sessions to form a baseline", () => ok(all.length >= 10, `only ${all.length}`));
+  const store = addHourlyNorms(buildBaseline(all), all);
+  t("baseline reports ready", () => eq(store.ready, true));
+  t("uses only the most recent ten", () => eq(store.windowCount, 10));
+  t("learns hour-of-day norms", () => ok(Object.keys(store.byHour).length >= 5));
+  t("afternoon norm is lower than late morning", () => {
+    const am = store.byHour[10]?.mean, pm = store.byHour[14]?.mean;
+    ok(am && pm && am > pm, `10:00 ${am} vs 14:00 ${pm} — this is why hour-of-day baselining matters`);
+  });
+  t("z-score of the mean is zero", () => {
+    const z = zFor(store, "deepWorkMs", store.metrics.deepWorkMs.mean);
+    ok(Math.abs(z) < 1e-9, `${z}`);
+  });
+  t("usual range brackets the mean", () => {
+    const r = usualRange(store, "deepWorkMs");
+    ok(r.low < r.mean && r.mean < r.high);
+  });
+
+  const thin = buildBaseline(all.slice(0, 3));
+  t("refuses to be ready on three sessions", () => eq(thin.ready, false));
+  t("says how many more are needed", () => eq(thin.needed, 7));
+  t("returns NaN rather than a fake comparison", () => ok(Number.isNaN(zFor(thin, "deepWorkMs", 1000))));
+  t("no usual range before it is ready", () => eq(usualRange(thin, "deepWorkMs"), null));
+  t("sessionMetrics returns null for a failed analysis", () => eq(sessionMetrics({ ok: false }), null));
+
+  t("cross-session baseline changes the classification", () => {
+    const rows2 = parseCsv(readFileSync(join(ROOT, "data", readdirSync(join(ROOT, "data")).filter((f) => f.endsWith(".csv"))[0]), "utf8")).rows;
+    const withBase = analyse(rows2, { baseline: { focus: { mean: 0.2, sd: 0.05 }, calm: { mean: 0.4, sd: 0.05 } } });
+    eq(withBase.baselineSource, "cross-session");
+    ok(withBase.deepWorkMs > analyse(rows2).deepWorkMs, "a lower baseline should yield more deep work");
+  });
+  t("falls back to the session when no baseline is given", () => eq(analyse(rows).baselineSource, "session"));
+}
+
 console.log("\nlive state engine");
 t("holds a state until the dwell time passes", () => {
   const e = new StateEngine({ dwellMs: 10_000 });

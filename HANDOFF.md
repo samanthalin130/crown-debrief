@@ -13,7 +13,7 @@ A Neurosity Crown is an eight-electrode EEG headset. A small Node tool records w
     npm run sample
     npm start
 
-That's the whole thing. No dependency installation, no API key, no account, no network. Node is the only requirement. `npm test` runs 53 checks.
+That's the whole thing. No dependency installation, no API key, no account, no network. Node is the only requirement. `npm test` runs 75 checks.
 
 If you want to record from a real Crown, `npm install` pulls the Neurosity SDK and `npm run log:live` records against credentials in `.env`.
 
@@ -85,6 +85,14 @@ This project does not build that. What it does build is the recording discipline
 
 A realistic sequence from here: extend the collector to run cue-based trials, collect labelled motor-imagery data from one person, train and honestly evaluate a two-class classifier, and only then consider actuation — with a hardware kill switch, a confidence floor, a dwell requirement, and a rule that unreadable signal means stop rather than repeat the last command.
 
+## 8b. How to read the interface
+
+**Today** answers "how did that go" with one figure: deep work, the time spent meaningfully above that person's own normal. It is expressed in minutes rather than as a score on purpose — minutes are a unit people already understand, they cannot be misread as a percentage, and counting them does not grade anyone's brain.
+
+**Session** shows the recording as a ribbon of named states rather than as line charts. Four states carry colour — focused, settled, steady, drifting — and two conditions deliberately do not: poor signal is drawn as a hatch and a break in recording as a faint gap. Absence must never look like a state, which is the one rule that palette exists to enforce.
+
+**Detail** holds everything an engineer might want and a user should not be shown first.
+
 ## 9. Known limitations
 
 - The Live tab runs on a mock source. Wiring the real Crown into the dev panel's stream is not done; the collector does talk to real hardware.
@@ -92,6 +100,8 @@ A realistic sequence from here: extend the collector to run cue-based trials, co
 - `hour of day` analysis is reported from a single session, which is not enough to be a pattern. The interface says so.
 - Retrieval is keyword-based. It handles the questions in the test suite well and will miss paraphrases that share no vocabulary with the notes.
 - The static site is designed for but not built.
+- The baseline uses the ten most recent sessions with no seasonal or day-of-week weighting beyond the phrase in the delta chip.
+- Activity tags are applied per event, not by dragging a range on the ribbon.
 - No data from a real headset has passed through this system yet. Every number seen so far is synthetic.
 
 ## 10. Where to look first

@@ -126,6 +126,10 @@ const BANDS = ["delta", "theta", "alpha", "beta", "gamma"];
 export function analyse(rows, options = {}) {
   const minPeakMs = options.minPeakMs ?? 3 * 60_000;
   const minSlumpMs = options.minSlumpMs ?? 4 * 60_000;
+  // When a cross-session baseline exists, judge this session against your normal
+  // rather than against itself. Without one, the session is its own reference --
+  // which still works, it just cannot say "quieter than your usual Friday".
+  const ext = options.baseline || null;
 
   if (!rows.length) return { ok: false, reason: "empty", rows: 0 };
 
@@ -139,8 +143,12 @@ export function analyse(rows, options = {}) {
   const wallMs = endMs - startMs;
   const recordedMs = Math.max(0, wallMs - gapMs);
 
-  const fBase = baseline(rows, "focus");
-  const cBase = baseline(rows, "calm");
+  const sessionFocus = baseline(rows, "focus");
+  const sessionCalm = baseline(rows, "calm");
+  const fBase = ext?.focus?.sd ? { ...sessionFocus, mean: ext.focus.mean, sd: ext.focus.sd, source: "cross-session" }
+                               : { ...sessionFocus, source: "session" };
+  const cBase = ext?.calm?.sd ? { ...sessionCalm, mean: ext.calm.mean, sd: ext.calm.sd, source: "cross-session" }
+                              : { ...sessionCalm, source: "session" };
 
   const focusSeries = usable.map((r) => ({ t: r.epoch_ms, v: r.focus, z: zScore(r.focus, fBase) }));
   const calmSeries = usable.map((r) => ({ t: r.epoch_ms, v: r.calm, z: zScore(r.calm, cBase) }));
@@ -183,9 +191,16 @@ export function analyse(rows, options = {}) {
     .filter((h) => h.rows >= 10)
     .sort((a, b) => b.meanFocus - a.meanFocus);
 
+  const longestStretchMs = peaks.length ? Math.max(...peaks.map((p) => p.durationMs)) : 0;
+
   return {
     ok: true,
     person: rows[0].person_id || "me",
+    baselineSource: fBase.source,
+    sessionFocus, sessionCalm,
+    deepWorkMs: timeInState.focused.ms,
+    settledMs: timeInState.calm.ms,
+    longestStretchMs,
     mode: rows[0].mode || "unknown",
     synthetic: String(rows[0].mode).toLowerCase() === "mock",
     rows: rows.length,

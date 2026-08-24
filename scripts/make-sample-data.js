@@ -107,13 +107,21 @@ function localMidnight(daysAgo) {
 mkdirSync(join(ROOT, "data"), { recursive: true });
 mkdirSync(join(ROOT, "notes"), { recursive: true });
 
-const variants = [
-  { daysAgo: 7, seed: 101, offset: -0.03, blocks: [[9, 12.5], [13.5, 17.5]] },
-  { daysAgo: 6, seed: 202, offset: -0.06, blocks: [[9.5, 12.0], [13.0, 16.5]] },
-  { daysAgo: 5, seed: 303, offset: -0.01, blocks: [[8.5, 12.5], [13.5, 18.0]] },
-  { daysAgo: 4, seed: 404, offset: -0.08, blocks: [[10, 12.5], [14.0, 17.0]] },
-  { daysAgo: 3, seed: 505, offset: -0.02, blocks: [[9, 12.0], [13.0, 17.5]] },
+// Twelve weekdays, so a cross-session baseline can actually form (it needs ten).
+const SHAPES = [
+  [[9, 12.5], [13.5, 17.5]], [[9.5, 12.0], [13.0, 16.5]], [[8.5, 12.5], [13.5, 18.0]],
+  [[10, 12.5], [14.0, 17.0]], [[9, 12.0], [13.0, 17.5]], [[9.25, 12.75], [13.75, 17.0]],
 ];
+const variants = [];
+let d = 1, i = 0;
+while (variants.length < 12) {
+  const probe = new Date(); probe.setDate(probe.getDate() - d);
+  const dow = probe.getDay();
+  if (dow !== 0 && dow !== 6) {
+    variants.push({ daysAgo: d, seed: 100 + variants.length * 97, offset: -0.01 - (variants.length % 5) * 0.017, blocks: SHAPES[i++ % SHAPES.length] });
+  }
+  d++;
+}
 
 const written = [];
 for (const v of variants) {

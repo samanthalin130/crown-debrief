@@ -35,15 +35,27 @@ Every sentence in the debrief is assembled from a computed number. That's delibe
 
 There is a **Copy summary** button for exactly this reason: it puts a compact, labelled summary of the session on your clipboard, ready to paste into whichever assistant you prefer. The app owns the numbers; the model owns the words.
 
-## The five tabs
+## Three screens
 
-| Tab | What's on it |
+Modelled on how Oura, Whoop and Muse handle dense biometric data: compress hard at the top, and put the detail on a separate screen rather than folding it away on the same one.
+
+| Screen | What's on it |
 | --- | --- |
-| **Live** | The current stream — focus and calm, band power, per-electrode contact, and the state the app thinks you're in. Runs on a mock source unless a Crown is connected. |
-| **Sessions** | Every CSV in `data/`, with its length and how much survived the quality filter. |
-| **Debrief** | The full report for the loaded session, plus session notes and export. |
-| **Guide** | Questions and answers, with sources. |
-| **Diagnostics** | Raw incoming frames, which knowledge sections matched a question and how strongly, the state engine's internals, and server status. |
+| **Today** | One number — **Deep work**, the time you spent meaningfully above your own normal — with how it compares to your usual, a one-line verdict, three baseline gauges, the suggestion, and the guide. |
+| **Session** | The session as a **state ribbon**: named states over time rather than two noisy traces. Below it a deviation strip and an activity lane, both sharing the same time scale. Scrub for a readout, drag to select a window, and everything recomputes for that window. |
+| **Detail** | Live stream, band power, electrode contact, the baseline store, the state engine, retrieval internals. Reached by a quiet link, because none of it helps you read a session. |
+
+### Why there's no live dashboard on the main screens
+
+Muse gives feedback through sound during a meditation rather than a chart, for a good reason: watching your own focus score while trying to concentrate reliably lowers it. The live stream is still there for debugging, on the Detail screen, deliberately out of the way.
+
+## Everything is measured against you
+
+There is no "good" focus score. Focus and calm vary enormously between people, and Neurosity's own documentation notes that anything above 0.3 is already significant — so a fixed threshold would mislead almost everyone.
+
+The app therefore learns your normal from your own sessions: **ten sessions**, with per-metric and per-hour-of-day norms. Comparing a 3pm reading against an all-day average would label almost everybody's afternoon a slump, so hours are compared with the same hour on other days.
+
+Until ten sessions exist, the app says so — a visible "learning what's normal for you" state — rather than inventing a comparison. One fixed five-word vocabulary describes every metric: *well above usual, above usual, typical, below usual, well below usual*. Never good, never bad.
 
 ## Recording your own sessions
 
@@ -58,7 +70,9 @@ Copy `.env.example` to `.env` and fill in your Neurosity credentials for live mo
     collector/logger.js   records CSV (unchanged from crown-focus-logger)
     core/                 all the real logic, as plain modules
       csv.js              parsing, tolerant of older files
-      stats.js            quality gate, baseline, peaks, slumps, states
+      stats.js            quality gate, session baseline, peaks, slumps, states
+      baseline.js         cross-session norms, per metric and per hour of day
+      vocab.js            the fixed five-word scale and its thresholds
       debrief.js          the written report and the suggestion
       format.js           Markdown export and clipboard summary
       search.js           BM25 keyword search over knowledge/
@@ -66,9 +80,10 @@ Copy `.env.example` to `.env` and fill in your Neurosity credentials for live mo
       state.js            live state with hysteresis and a quality gate
       mock-source.js      the live mock stream
     knowledge/            the notes the guide answers from
-    web/                  the dev panel
+    web/                  the interface
+      ribbon.js           state ribbon and deviation strip, on canvas
     server.js             zero-dependency dev server
-    test/run-tests.js     53 checks, no test framework
+    test/run-tests.js     75 checks, no test framework
 
 Everything in `core/` runs unmodified in both Node and a browser. That's what allows the same code to power this dev panel and, later, a static site with no server behind it.
 
@@ -78,7 +93,7 @@ Live telemetry uses Server-Sent Events rather than WebSockets. Telemetry only tr
 
     npm test
 
-53 checks covering parsing, the quality gate, the statistics, the written output, retrieval, the guide's refusal to guess, and the state engine.
+75 checks covering parsing, the quality gate, the statistics, the cross-session baseline and its refusal to compare without enough data, the fixed vocabulary, the written output, retrieval, the guide's refusal to guess, and the state engine.
 
 ## Roadmap
 
@@ -86,7 +101,9 @@ Live telemetry uses Server-Sent Events rather than WebSockets. Telemetry only tr
 - [x] Session analysis and written debrief
 - [x] Guide with retrieval and sources
 - [x] Session notes format
-- [ ] Retrospective note capture on peaks and dips
+- [x] Cross-session baselines, with an honest learning state
+- [x] State ribbon, deviation strip, activity lane
+- [x] Notes and activity tags attached to events
 - [ ] Static site for GFT Labs — no server, no keys
 - [ ] Optional Mistral integration for model-written answers, local only
 - [ ] Multi-day comparison

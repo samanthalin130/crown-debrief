@@ -10,29 +10,102 @@
 <div class="wrap">
   <header>
     <h1>Crown Debrief</h1>
-    <span class="sub">Neurosity Crown · session debrief and guide</span>
-    <span class="chip live" id="modeChip">connecting…</span>
+    <select class="sess" id="sessPick" aria-label="Choose a session"></select>
     <span class="chip synth" id="synthChip" hidden>synthetic sample data</span>
+    <span class="spacer"></span>
+    <a class="quiet" href="#" id="detailLink">Detail view</a>
   </header>
 
   <nav role="tablist">
-    <button role="tab" data-tab="live" aria-selected="true">Live</button>
-    <button role="tab" data-tab="sessions" aria-selected="false">Sessions</button>
-    <button role="tab" data-tab="debrief" aria-selected="false">Debrief</button>
-    <button role="tab" data-tab="guide" aria-selected="false">Guide</button>
-    <button role="tab" data-tab="diag" aria-selected="false">Diagnostics</button>
+    <button role="tab" data-tab="today" aria-selected="true">Today</button>
+    <button role="tab" data-tab="session" aria-selected="false">Session</button>
+    <button role="tab" data-tab="detail" aria-selected="false" hidden>Detail</button>
   </nav>
 
   <main>
-    <!-- LIVE -->
-    <section class="panel on" id="p-live">
-      <div class="banner" id="liveBanner">This stream is a mock source, not a headset. Real recording is done by <code>collector/logger.js</code> — see the Sessions tab for what it has written.</div>
-      <div class="grid g3">
+    <!-- ============ TIER 1 ============ -->
+    <section class="panel on" id="p-today">
+      <div class="card">
+        <div class="hero">
+          <div>
+            <div class="num" id="heroNum">—</div>
+            <div class="lab" id="heroLab">Deep work</div>
+            <div id="heroDelta"></div>
+          </div>
+          <div class="say">
+            <p class="v" id="heroVerdict">Loading your last session…</p>
+            <p id="heroDetail"></p>
+          </div>
+        </div>
+        <div id="learning"></div>
+      </div>
+
+      <div class="card">
+        <h2>Against your normal</h2>
+        <div id="gauges"></div>
+      </div>
+
+      <div class="card">
+        <h2>Suggestion</h2>
+        <div class="sugg" id="suggestion"></div>
+        <div class="row" style="margin-top:14px">
+          <button class="act primary" id="btnCopy">Copy summary</button>
+          <button class="act" id="btnMd">Download</button>
+          <span class="muted" id="copyNote"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Ask about this session</h2>
+        <div class="chat" id="chat"></div>
+        <div class="ask">
+          <input id="q" placeholder="What does any of this mean?" autocomplete="off">
+          <button class="act primary" id="send">Ask</button>
+        </div>
+        <div class="starters" id="starters"></div>
+      </div>
+    </section>
+
+    <!-- ============ TIER 2 ============ -->
+    <section class="panel" id="p-session">
+      <div class="filters">
+        <button data-range="all" aria-pressed="true">Whole day</button>
+        <button data-range="am" aria-pressed="false">Morning</button>
+        <button data-range="pm" aria-pressed="false">Afternoon</button>
+        <button data-range="clear" aria-pressed="false" id="clearSel" hidden>Clear selection</button>
+        <span class="hint">or drag across the ribbon to select a window</span>
+      </div>
+
+      <div class="stage" id="stage">
+        <canvas id="ribbon"></canvas>
+        <canvas id="devstrip"></canvas>
+        <div class="lane" id="lane"></div>
+        <div class="axis" id="axis"></div>
+        <div class="legend">
+          <span><i style="background:var(--st-focus)"></i>Focused</span>
+          <span><i style="background:var(--st-settle)"></i>Settled</span>
+          <span><i style="background:var(--st-steady)"></i>Steady</span>
+          <span><i style="background:var(--st-drift)"></i>Drifting</span>
+          <span><i class="lg-hatch"></i>No reading</span>
+          <span><i style="border:1px dashed var(--panel-line);background:transparent"></i>Recording stopped</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:13px">
+        <h2>What stood out <span id="selNote" style="text-transform:none;letter-spacing:0;font-family:var(--sans)"></span></h2>
+        <div id="events"></div>
+      </div>
+    </section>
+
+    <!-- ============ TIER 3 ============ -->
+    <section class="panel" id="p-detail">
+      <p class="muted" style="margin:0 0 14px">Everything below is for building and debugging, not for reading a session. Watching a live focus score while you work reliably lowers it.</p>
+      <div class="grid g2">
         <div class="card">
-          <h2>Now</h2>
-          <div class="meter"><div class="meter-l"><span>Focus</span><b id="mFocus">—</b></div><div class="track"><div class="fill f" id="bFocus" style="width:0%"></div></div></div>
-          <div class="meter"><div class="meter-l"><span>Calm</span><b id="mCalm">—</b></div><div class="track"><div class="fill c" id="bCalm" style="width:0%"></div></div></div>
-          <p class="muted" style="margin:12px 0 0">Neurosity treats anything above 0.30 as significant, so these are not percentages of a whole.</p>
+          <h2>Live stream</h2>
+          <div class="meter"><div class="meter-l"><span>Focus</span><b id="mFocus">—</b></div><div class="track"><div class="fill" id="bFocus" style="width:0%"></div></div></div>
+          <div class="meter"><div class="meter-l"><span>Calm</span><b id="mCalm">—</b></div><div class="track"><div class="fill" id="bCalm" style="width:0%;background:var(--st-settle)"></div></div></div>
+          <p class="muted" style="margin:12px 0 0">State: <b id="stateText">no reading yet</b></p>
         </div>
         <div class="card">
           <h2>Band power</h2>
@@ -44,84 +117,9 @@
           <div class="elec" id="elec"></div>
           <p class="muted" id="elecNote" style="margin:12px 0 0">Waiting for the stream…</p>
         </div>
-      </div>
-      <div class="card" style="margin-top:13px">
-        <h2>State</h2>
-        <div class="row">
-          <span class="state" id="stateBadge"><span class="dot"></span><span id="stateText">no reading yet</span></span>
-          <span class="muted" id="shapeNote"></span>
-        </div>
-      </div>
-    </section>
-
-    <!-- SESSIONS -->
-    <section class="panel" id="p-sessions">
-      <div class="card">
-        <h2>Recorded sessions</h2>
-        <table><thead><tr><th>Session</th><th>Recorded</th><th>Readings</th><th>Usable</th><th></th></tr></thead>
-        <tbody id="sessRows"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody></table>
-        <p class="muted" style="margin:13px 0 0">Files come from the <code>data/</code> folder. To add one, run <code>npm run log</code> (mock) or <code>npm run log:live</code> (real headset).</p>
-      </div>
-    </section>
-
-    <!-- DEBRIEF -->
-    <section class="panel" id="p-debrief">
-      <div id="debriefEmpty" class="card"><p class="muted">No session loaded. Open one from the Sessions tab.</p></div>
-      <div id="debriefBody" hidden>
-        <div class="card"><h2>Session timeline</h2><canvas id="chart"></canvas>
-          <p class="muted" style="margin:10px 0 0"><span style="color:var(--focus-c)">━</span> focus &nbsp; <span style="color:var(--calm-c)">━</span> calm &nbsp; shaded band = your usual range this session</p>
-        </div>
-        <div class="grid g3" style="margin-top:13px" id="statCards"></div>
-        <div class="card" style="margin-top:13px"><h2>What happened</h2><div class="prose" id="narrative"></div></div>
-        <div class="card" style="margin-top:13px"><h2>Suggestion</h2><div class="sugg" id="suggestion"></div></div>
-        <div class="grid g2" style="margin-top:13px">
-          <div class="card"><h2>Peaks</h2><table><tbody id="peakRows"></tbody></table></div>
-          <div class="card"><h2>Slumps</h2><table><tbody id="slumpRows"></tbody></table></div>
-        </div>
-        <div class="card" style="margin-top:13px"><h2>Session notes</h2>
-          <div id="noteList"></div>
-          <div class="row" style="margin-top:11px">
-            <input class="note-in" id="noteText" placeholder="What was happening? e.g. back-to-back meetings">
-            <select id="noteWhen" class="note-in" style="flex:0 0 auto;min-width:150px"></select>
-            <button class="act" id="noteAdd">Add note</button>
-          </div>
-          <p class="muted" style="margin:10px 0 0">Notes stay on this machine, in <code>notes/</code>. They are never included in the published site.</p>
-        </div>
-        <div class="row" style="margin-top:13px">
-          <button class="act primary" id="btnCopy">Copy summary</button>
-          <button class="act" id="btnMd">Download Markdown</button>
-          <span class="muted" id="copyNote"></span>
-        </div>
-      </div>
-    </section>
-
-    <!-- GUIDE -->
-    <section class="panel" id="p-guide">
-      <div class="card">
-        <div class="row" style="justify-content:space-between;margin-bottom:13px">
-          <span class="state" id="guideState"><span class="dot"></span><span id="guideStateText">no reading yet</span></span>
-          <label class="row" style="gap:6px;font-size:13px;color:var(--ink-2)">
-            <input type="checkbox" id="adaptive" checked> adapt answers to my state
-          </label>
-        </div>
-        <div class="chat" id="chat"></div>
-        <div class="ask">
-          <input id="q" placeholder="Ask about the project, the numbers, or your session…" autocomplete="off">
-          <button class="act primary" id="send">Ask</button>
-        </div>
-        <div class="starters" id="starters"></div>
-      </div>
-    </section>
-
-    <!-- DIAGNOSTICS -->
-    <section class="panel" id="p-diag">
-      <div class="grid g2">
-        <div class="card"><h2>Last raw frame</h2><pre id="rawFrame">waiting…</pre></div>
-        <div class="card"><h2>Last retrieval</h2><pre id="lastRetrieval">no question asked yet</pre></div>
-      </div>
-      <div class="grid g2" style="margin-top:13px">
+        <div class="card"><h2>Baseline store</h2><pre id="baseDump">—</pre></div>
         <div class="card"><h2>State engine</h2><pre id="stateDump">—</pre></div>
-        <div class="card"><h2>Server</h2><pre id="serverDump">—</pre></div>
+        <div class="card"><h2>Last retrieval</h2><pre id="lastRetrieval">no question asked yet</pre></div>
       </div>
     </section>
   </main>

@@ -1,351 +1,429 @@
-// The dev panel. Imports the same core modules the Node side uses, straight from
-// /core/ -- no build step, no bundler, no framework.
+// Crown Debrief — three screens.
+//   Today   (tier 1) one number, one comparison, one sentence
+//   Session (tier 2) the session as named states over time
+//   Detail  (tier 3) raw instrument readouts, reached deliberately
+//
+// Everything imports from /core/, the same modules Node runs.
 
 import { parseCsv } from "/core/csv.js";
-import { analyse } from "/core/stats.js";
+import { analyse, classify, zScore } from "/core/stats.js";
 import { narrative, suggestion, fmtClock, fmtDuration } from "/core/debrief.js";
 import { toMarkdown, toClipboardSummary } from "/core/format.js";
 import { buildIndex } from "/core/search.js";
 import { ask, STARTER_QUESTIONS } from "/core/guide.js";
 import { StateEngine } from "/core/state.js";
+import { describe, deltaPhrase, MIN_SESSIONS_FOR_BASELINE } from "/core/vocab.js";
+import { zForHour } from "/core/baseline.js";
+import { binSession, drawRibbon, drawDeviation, STATE_LABEL } from "/ribbon.js";
 
 const $ = (id) => document.getElementById(id);
-const pct = (x) => `${Math.round(x * 100)}%`;
+const pctS = (x) => `${Math.round(x * 100)}%`;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const app = {
-  analysis: null,
-  sessionName: null,
-  notes: [],
-  index: null,
-  engine: new StateEngine({ dwellMs: 6000 }),
-  lastFrame: null,
-  lastRetrieval: null,
+  sessions: [], name: null, rows: [], full: null, view: null,
+  base: null, notes: [], activities: [], tags: [],
+  index: null, engine: new StateEngine({ dwellMs: 6000 }),
+  cells: [], range: "all", sel: null,
 };
 
-/* ---------- tabs ---------- */
-document.querySelectorAll("nav button").forEach((b) => {
-  b.addEventListener("click", () => {
-    document.querySelectorAll("nav button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
-    document.querySelectorAll(".panel").forEach((p) => p.classList.remove("on"));
-    $(`p-${b.dataset.tab}`).classList.add("on");
-    if (b.dataset.tab === "debrief" && app.analysis) drawChart();
-  });
-});
-
-/* ---------- live stream ---------- */
-const BANDS = ["delta", "theta", "alpha", "beta", "gamma"];
-$("bandBars").innerHTML = BANDS.map(() => `<div class="bar" style="height:2px"></div>`).join("");
-
-function renderFrame(f) {
-  app.lastFrame = f;
-  $("mFocus").textContent = f.focus.toFixed(3);
-  $("mCalm").textContent = f.calm.toFixed(3);
-  $("bFocus").style.width = `${Math.min(100, f.focus * 100)}%`;
-  $("bCalm").style.width = `${Math.min(100, f.calm * 100)}%`;
-
-  const max = Math.max(...BANDS.map((b) => f.bands[b]), 0.01);
-  document.querySelectorAll("#bandBars .bar").forEach((el, i) => {
-    el.style.height = `${Math.max(2, (f.bands[BANDS[i]] / max) * 100)}%`;
-  });
-
-  const q = f.quality || {};
-  $("elec").innerHTML = Object.entries(q).map(([name, status]) => {
-    const cls = status === "noContact" ? "bad" : status === "bad" ? "mid" : "";
-    return `<span class="el ${cls}" title="${name}: ${status}">${name}</span>`;
-  }).join("");
-  const problems = Object.entries(q).filter(([, s]) => s === "bad" || s === "noContact");
-  $("elecNote").textContent = problems.length
-    ? `${problems.length} electrode${problems.length > 1 ? "s" : ""} not reading properly — readings from this window are excluded.`
-    : "All electrodes reading normally.";
-
-  app.engine.push({ t: f.t, focus: f.focus, calm: f.calm, quality: f.signal_quality });
-  const shaping = app.engine.shaping;
-  $("stateText").textContent = app.engine.state;
-  $("guideStateText").textContent = app.engine.state;
-  $("shapeNote").textContent = shaping.note;
-
-  $("rawFrame").textContent = JSON.stringify(f, null, 2);
-  $("stateDump").textContent = JSON.stringify({
-    state: app.engine.state, candidate: app.engine.candidate,
-    dwellMs: app.engine.dwellMs, windowMs: app.engine.windowMs,
-    bufferedSamples: app.engine.buffer.length, shaping,
-  }, null, 2);
+/* ---------------- screens ---------------- */
+function show(tab) {
+  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("on", p.id === `p-${tab}`));
+  if (tab === "session") requestAnimationFrame(renderStage);
 }
-
-const es = new EventSource("/api/stream");
-es.onmessage = (e) => renderFrame(JSON.parse(e.data));
-es.onerror = () => { $("modeChip").textContent = "stream lost — retrying"; };
-
-fetch("/api/status").then((r) => r.json()).then((s) => {
-  $("modeChip").textContent = `${s.mode} source`;
-  $("serverDump").textContent = JSON.stringify(s, null, 2);
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+$("detailLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  document.querySelector('nav button[data-tab="detail"]').hidden = false;
+  show("detail");
 });
 
-/* ---------- sessions ---------- */
-async function loadSessions() {
-  const { sessions } = await (await fetch("/api/sessions")).json();
-  if (!sessions.length) {
-    $("sessRows").innerHTML = `<tr><td colspan="5" class="muted">Nothing recorded yet. Run <code>npm run sample</code> for synthetic data, or <code>npm run log</code> to record.</td></tr>`;
+/* ---------------- loading ---------------- */
+async function boot() {
+  const [sess, base, tags] = await Promise.all([
+    fetch("/api/sessions").then((r) => r.json()),
+    fetch("/api/baseline").then((r) => r.json()),
+    fetch("/api/tags").then((r) => r.json()),
+  ]);
+  app.sessions = sess.sessions || [];
+  app.base = base;
+  app.tags = tags.tags || [];
+  $("baseDump").textContent = JSON.stringify({ ...base, byHour: `${Object.keys(base.byHour || {}).length} hours` }, null, 2);
+
+  if (!app.sessions.length) {
+    $("heroVerdict").textContent = "No sessions recorded yet.";
+    $("heroDetail").textContent = "Run npm run sample for synthetic data, or npm run log to record one.";
     return;
   }
-  $("sessRows").innerHTML = sessions.map((s) => `
-    <tr class="click" data-name="${s.name}">
-      <td>${s.name.replace(/^session-|\.csv$/g, "")}</td>
-      <td class="n" data-col="dur">—</td>
-      <td class="n" data-col="rows">—</td>
-      <td class="n" data-col="cov">—</td>
-      <td><button class="act" data-open="${s.name}">Open</button></td>
-    </tr>`).join("");
-
-  // Fill the summary columns lazily so the list appears immediately.
-  for (const s of sessions) {
-    const a = await analyseSession(s.name);
-    const tr = document.querySelector(`tr[data-name="${s.name}"]`);
-    if (!tr || !a) continue;
-    tr.querySelector('[data-col="dur"]').textContent = fmtDuration(a.recordedMs);
-    tr.querySelector('[data-col="rows"]').textContent = a.rows.toLocaleString();
-    tr.querySelector('[data-col="cov"]').textContent = pct(a.coverage);
-  }
+  $("sessPick").innerHTML = app.sessions.map((s) => {
+    const d = s.name.replace(/^session-|\.csv$/g, "");
+    const label = new Date(d + "T12:00:00").toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
+    return `<option value="${s.name}">${label}</option>`;
+  }).join("");
+  $("sessPick").addEventListener("change", () => openSession($("sessPick").value));
+  await openSession(app.sessions[0].name);
 }
-
-const csvCache = new Map();
-async function analyseSession(name) {
-  if (csvCache.has(name)) return csvCache.get(name);
-  const text = await (await fetch(`/api/session?name=${encodeURIComponent(name)}`)).text();
-  const { rows } = parseCsv(text);
-  const a = rows.length ? analyse(rows) : null;
-  csvCache.set(name, a);
-  return a;
-}
-
-document.addEventListener("click", async (e) => {
-  const name = e.target.dataset?.open || e.target.closest("tr.click")?.dataset?.name;
-  if (!name) return;
-  await openSession(name);
-});
 
 async function openSession(name) {
-  const a = await analyseSession(name);
-  if (!a) return;
-  app.analysis = a;
-  app.sessionName = name;
-  const date = new Date(a.startMs).toISOString().slice(0, 10);
-  app.notes = (await (await fetch(`/api/notes?date=${date}`)).json()).notes || [];
-  $("synthChip").hidden = !a.synthetic;
-  renderDebrief();
-  document.querySelector('nav button[data-tab="debrief"]').click();
+  app.name = name;
+  const text = await (await fetch(`/api/session?name=${encodeURIComponent(name)}`)).text();
+  app.rows = parseCsv(text).rows;
+  const crossBase = app.base?.ready ? { focus: app.base.focus, calm: app.base.calm } : null;
+  app.full = analyse(app.rows, { baseline: crossBase });
+  $("synthChip").hidden = !app.full.synthetic;
+
+  const date = new Date(app.full.startMs).toISOString().slice(0, 10);
+  const [n, a] = await Promise.all([
+    fetch(`/api/notes?date=${date}`).then((r) => r.json()).catch(() => ({ notes: [] })),
+    fetch(`/api/activities?date=${date}`).then((r) => r.json()).catch(() => ({ activities: [] })),
+  ]);
+  app.notes = n.notes || [];
+  app.activities = a.activities || [];
+  app.range = "all"; app.sel = null;
+  document.querySelectorAll(".filters button[data-range]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === "all")));
+  $("clearSel").hidden = true;
+  applyRange();
 }
 
-/* ---------- debrief ---------- */
-function renderDebrief() {
-  const a = app.analysis;
-  $("debriefEmpty").hidden = true;
-  $("debriefBody").hidden = false;
+/* ---------------- range / view ---------------- */
+function windowFor() {
+  const a = app.full;
+  if (app.sel) return app.sel;
+  if (app.range === "am") return { from: a.startMs, to: noonOf(a.startMs) };
+  if (app.range === "pm") return { from: noonOf(a.startMs), to: a.endMs };
+  return { from: a.startMs, to: a.endMs };
+}
+function noonOf(ms) { const d = new Date(ms); d.setHours(12, 0, 0, 0); return d.getTime(); }
 
-  $("statCards").innerHTML = [
-    ["Recorded", fmtDuration(a.recordedMs)],
-    ["Usable signal", pct(a.coverage)],
-    ["Focus median", a.focus.p50.toFixed(3)],
-    ["Your usual range", `${a.focus.p10.toFixed(2)}–${a.focus.p90.toFixed(2)}`],
-    ["Calm median", a.calm.p50.toFixed(3)],
-    ["Focused time", pct(a.timeInState.focused.share)],
-  ].map(([k, v]) => `<div class="card"><div class="stat"><span class="v">${v}</span><span class="k">${k}</span></div></div>`).join("");
+function applyRange() {
+  const w = windowFor();
+  const rows = app.rows.filter((r) => r.epoch_ms >= w.from && r.epoch_ms <= w.to);
+  const crossBase = app.base?.ready ? { focus: app.base.focus, calm: app.base.calm } : null;
+  app.view = rows.length > 10 ? analyse(rows, { baseline: crossBase }) : app.full;
+  buildCells();
+  renderToday();
+  renderEvents();
+  renderStage();
+  const whole = !app.sel && app.range === "all";
+  $("selNote").textContent = whole ? "" : ` · ${fmtClock(w.from)}–${fmtClock(w.to)}`;
+}
 
-  $("narrative").innerHTML = narrative(a).split("\n\n").map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+document.querySelectorAll(".filters button[data-range]").forEach((b) => {
+  b.addEventListener("click", () => {
+    if (b.dataset.range === "clear") { app.sel = null; app.range = "all"; $("clearSel").hidden = true; }
+    else { app.range = b.dataset.range; app.sel = null; $("clearSel").hidden = true; }
+    document.querySelectorAll(".filters button[data-range]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.range === app.range)));
+    applyRange();
+  });
+});
+
+/* ---------------- tier 1 ---------------- */
+function renderToday() {
+  const a = app.view, ready = Boolean(app.base?.ready);
+  const dayName = new Date(app.full.startMs).toLocaleDateString([], { weekday: "long" });
+
+  $("heroNum").textContent = fmtDuration(a.deepWorkMs);
+  $("heroLab").textContent = `Deep work · ${new Date(app.full.startMs).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}`;
+
+  if (ready) {
+    const mean = app.base.metrics.deepWorkMs.mean;
+    const z = app.base.metrics.deepWorkMs.sd ? (a.deepWorkMs - mean) / app.base.metrics.deepWorkMs.sd : 0;
+    const d = describe(z, true);
+    $("heroDelta").innerHTML = `<span class="delta d-${d.token.replace("st-", "")}">${esc(deltaPhrase(a.deepWorkMs - mean, true, dayName))}</span>`;
+  } else $("heroDelta").innerHTML = "";
 
   const s = suggestion(a);
-  $("suggestion").innerHTML = s ? `<b>${escapeHtml(s.headline)}</b><p>${escapeHtml(s.body)}</p>` : "";
+  const parts = narrative(a).split("\n\n");
+  $("heroVerdict").textContent = verdictLine(a, ready);
+  const longest = parts.find((p) => p.startsWith("Your longest")) || parts[2] || "";
+  $("heroDetail").textContent = longest.split(/(?<=\.)\s+/)[0];
 
-  const runRows = (list, kind) => list.length
-    ? list.map((p) => `<tr><td class="n">${fmtClock(p.startMs)}–${fmtClock(p.endMs)}</td><td class="n">${fmtDuration(p.durationMs)}</td><td class="n">${(kind === "peak" ? p.meanValue : p.lowValue).toFixed(2)}</td></tr>`).join("")
-    : `<tr><td class="muted">None found in this session.</td></tr>`;
-  $("peakRows").innerHTML = runRows(a.peaks, "peak");
-  $("slumpRows").innerHTML = runRows(a.slumps, "slump");
+  $("learning").innerHTML = ready ? "" : `
+    <div class="learning">
+      <b>Learning what's normal for you</b>
+      <p>${app.base.sessionCount} of ${MIN_SESSIONS_FOR_BASELINE} sessions recorded. Comparisons switch on once there's enough to compare against — until then this session is measured against itself.</p>
+      <div class="bar"><i style="width:${Math.min(100, (app.base.sessionCount / MIN_SESSIONS_FOR_BASELINE) * 100)}%"></i></div>
+    </div>`;
 
-  // Note targets: the moments worth explaining.
-  const targets = [
-    ...a.peaks.map((p) => ({ ms: p.startMs, label: `peak at ${fmtClock(p.startMs)}` })),
-    ...a.slumps.map((p) => ({ ms: p.startMs, label: `dip at ${fmtClock(p.startMs)}` })),
-  ];
-  if (!targets.length) targets.push({ ms: a.startMs, label: `start of session` });
-  $("noteWhen").innerHTML = targets.map((t) => `<option value="${t.ms}">${t.label}</option>`).join("");
+  $("gauges").innerHTML = [
+    ["Deep work", "deepWorkMs", a.deepWorkMs, fmtDuration(a.deepWorkMs), "st-focus"],
+    ["Settled time", "settledMs", a.settledMs, fmtDuration(a.settledMs), "st-settle"],
+    ["Longest unbroken stretch", "longestStretchMs", a.longestStretchMs, fmtDuration(a.longestStretchMs), "st-focus"],
+  ].map(([name, key, value, shown, tok]) => gauge(name, key, value, shown, tok, ready)).join("");
 
-  renderNotes();
-  drawChart();
+  $("suggestion").innerHTML = s ? `<b>${esc(s.headline)}</b><p>${esc(s.body)}</p>` : "";
 }
 
-function renderNotes() {
-  $("noteList").innerHTML = app.notes.length
-    ? app.notes.sort((x, y) => x.epoch_ms - y.epoch_ms)
-        .map((n) => `<div style="padding:7px 0;border-bottom:1px solid var(--line-2)"><span class="n" style="font-family:var(--mono);color:var(--ink)">${fmtClock(n.epoch_ms)}</span> — ${escapeHtml(n.text)}</div>`).join("")
-    : `<p class="muted" style="margin:0">No notes yet. The data can tell you when something changed, never why — that's what these are for.</p>`;
+function verdictLine(a, ready) {
+  if (!a.peaks.length && !a.slumps.length) return "A level session, with nothing standing out.";
+  const am = a.peaks.filter((p) => new Date(p.startMs).getHours() < 13).length;
+  const pmDip = a.slumps.filter((p) => new Date(p.startMs).getHours() >= 12).length;
+  if (am && pmDip) return "A strong morning, a heavier afternoon.";
+  if (a.peaks.length && !a.slumps.length) return "Steady focus, no real dips.";
+  if (!a.peaks.length && a.slumps.length) return "Never really got going.";
+  return "A mixed session.";
 }
 
-$("noteAdd").addEventListener("click", async () => {
-  const text = $("noteText").value.trim();
-  if (!text) return;
-  const epoch_ms = Number($("noteWhen").value);
-  const r = await fetch("/api/notes", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ epoch_ms, text }),
-  });
-  const out = await r.json();
-  if (out.ok) { app.notes.push(out.note); $("noteText").value = ""; renderNotes(); }
+function gauge(name, key, value, shown, tok, ready) {
+  const m = app.base?.metrics?.[key];
+  if (!ready || !m || !m.sd) {
+    return `<div class="gauge">
+      <div class="g-top"><span class="g-name">${name}</span><span class="g-val">${shown} <span class="delta d-none" style="margin-left:6px">not enough data yet</span></span></div>
+      <div class="g-track"><div class="g-hatch"></div></div>
+      <div class="g-foot"><span></span><span>needs ${MIN_SESSIONS_FOR_BASELINE} sessions</span><span></span></div>
+    </div>`;
+  }
+  const z = (value - m.mean) / m.sd;
+  const d = describe(z, true);
+  const lo = m.mean - m.sd, hi = m.mean + m.sd;
+  const span = Math.max(hi - lo, 1) * 3;
+  const axisLo = m.mean - span / 2;
+  const pos = (v) => Math.max(1, Math.min(99, ((v - axisLo) / span) * 100));
+  return `<div class="gauge">
+    <div class="g-top"><span class="g-name">${name}</span><span class="g-val">${shown} <span class="delta d-${d.token.replace("st-", "")}" style="margin-left:6px">${d.word.toLowerCase()}</span></span></div>
+    <div class="g-track">
+      <div class="g-band" style="left:${pos(lo)}%;width:${pos(hi) - pos(lo)}%"></div>
+      <div class="g-mark" style="left:${pos(value)}%;background:var(--${tok})"></div>
+    </div>
+    <div class="g-foot"><span>less</span><span>your usual range · last ${app.base.windowCount} sessions</span><span>more</span></div>
+  </div>`;
+}
+
+/* ---------------- tier 2 ---------------- */
+function buildCells() {
+  const a = app.full;
+  const fBase = a.focus, cBase = a.calm;
+  const w = windowFor();
+  const bins = [];
+  for (const r of app.rows) {
+    if (r.epoch_ms < w.from || r.epoch_ms > w.to) continue;
+    const fz = zScore(r.focus, fBase), cz = zScore(r.calm, cBase);
+    const hourZ = app.base?.ready ? zForHour(app.base, new Date(r.epoch_ms).getHours(), r.focus) : fz;
+    bins.push({ t: r.epoch_ms, state: classify(r, fz, cz), z: Number.isFinite(hourZ) ? hourZ : fz, focus: r.focus, calm: r.calm });
+  }
+  app.bins = bins;
+  app.win = w;
+}
+
+function renderStage() {
+  const cv = $("ribbon");
+  if (!cv.clientWidth || !app.bins?.length) return;
+  const width = Math.max(80, Math.floor(cv.clientWidth));
+  app.cells = binSession(app.bins, app.win.from, app.win.to, width);
+  drawRibbon(cv, app.cells);
+  drawDeviation($("devstrip"), app.cells);
+
+  // activity lane
+  const span = app.win.to - app.win.from || 1;
+  $("lane").innerHTML = app.activities
+    .filter((x) => x.endMs > app.win.from && x.startMs < app.win.to)
+    .map((x) => {
+      const l = Math.max(0, ((x.startMs - app.win.from) / span) * 100);
+      const r = Math.min(100, ((x.endMs - app.win.from) / span) * 100);
+      return `<i style="left:${l}%;width:${Math.max(3, r - l)}%" title="${esc(x.tag)}">${esc(x.tag)}</i>`;
+    }).join("");
+
+  // 24-hour on the axis: unambiguous, compact, and the usual convention for a time scale.
+  const axisTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  const ticks = Math.max(4, Math.min(8, Math.round(span / 3_600_000)));
+  $("axis").innerHTML = Array.from({ length: ticks + 1 }, (_, i) =>
+    `<span>${axisTime(app.win.from + (span * i) / ticks)}</span>`).join("");
+}
+window.addEventListener("resize", () => { if (app.bins?.length) renderStage(); });
+
+/* scrub + drag-select */
+const stage = $("stage");
+let pill = null, line = null, selbox = null, dragFrom = null;
+
+function stageX(e) {
+  const cv = $("ribbon");
+  const r = cv.getBoundingClientRect();
+  return { x: Math.max(0, Math.min(r.width, e.clientX - r.left)), r };
+}
+
+stage.addEventListener("pointermove", (e) => {
+  if (!app.cells.length) return;
+  const { x, r } = stageX(e);
+  const i = Math.min(app.cells.length - 1, Math.floor((x / r.width) * app.cells.length));
+  const c = app.cells[i];
+  if (!pill) {
+    pill = document.createElement("div"); pill.className = "pill"; stage.appendChild(pill);
+    line = document.createElement("div"); line.className = "scrubline"; stage.appendChild(line);
+  }
+  const stageRect = stage.getBoundingClientRect();
+  const offX = r.left - stageRect.left, offY = r.top - stageRect.top;
+  line.style.left = `${offX + x}px`; line.style.top = `${offY}px`; line.style.height = `${r.height + 32}px`;
+
+  const label = c.state === "gap" ? "Recording stopped" : STATE_LABEL[c.state];
+  let dev = "";
+  if (c.state !== "gap" && c.state !== "unreadable" && Number.isFinite(c.z) && app.base?.ready) {
+    const d = describe(c.z, true);
+    dev = `<span class="p-d" style="color:var(--${d.token})">${esc(d.word)} for this hour</span>`;
+  }
+  pill.innerHTML = `<span class="p-t">${fmtClock(c.t)}</span><span class="p-s">${label}</span>${dev}`;
+  pill.style.top = `${Math.max(0, offY - pill.offsetHeight - 9)}px`;
+  const pw = pill.offsetWidth || 140;
+  pill.style.left = `${Math.max(0, Math.min(stageRect.width - pw - 4, offX + x - pw / 2))}px`;
+
+  if (dragFrom !== null) {
+    if (!selbox) { selbox = document.createElement("div"); selbox.className = "selbox"; stage.appendChild(selbox); }
+    const a = Math.min(dragFrom, x), b = Math.max(dragFrom, x);
+    selbox.style.left = `${offX + a}px`; selbox.style.width = `${b - a}px`;
+    selbox.style.top = `${offY}px`; selbox.style.height = `${r.height + 32}px`;
+  }
+});
+stage.addEventListener("pointerleave", () => {
+  pill?.remove(); line?.remove(); pill = null; line = null;
+});
+stage.addEventListener("pointerdown", (e) => { dragFrom = stageX(e).x; stage.setPointerCapture(e.pointerId); });
+stage.addEventListener("pointerup", (e) => {
+  if (dragFrom === null) return;
+  const { x, r } = stageX(e);
+  const a = Math.min(dragFrom, x), b = Math.max(dragFrom, x);
+  dragFrom = null; selbox?.remove(); selbox = null;
+  if (b - a < 12) return;                       // a click, not a drag
+  const span = app.win.to - app.win.from;
+  app.sel = { from: app.win.from + (a / r.width) * span, to: app.win.from + (b / r.width) * span };
+  $("clearSel").hidden = false;
+  document.querySelectorAll(".filters button[data-range]").forEach((x) => x.setAttribute("aria-pressed", "false"));
+  applyRange();
 });
 
+/* ---------------- events ---------------- */
+function renderEvents() {
+  const a = app.view;
+  // A five-minute blip is noise, not an event worth asking someone to explain.
+  const MIN_EVENT_MS = 8 * 60_000;
+  const items = [
+    ...a.peaks.map((p) => ({ ...p, kind: "peak" })),
+    ...a.slumps.map((p) => ({ ...p, kind: "slump" })),
+  ].filter((p) => p.durationMs >= MIN_EVENT_MS).sort((x, y) => x.startMs - y.startMs);
+
+  if (!items.length) { $("events").innerHTML = `<p class="muted" style="margin:0">Nothing stood out in this window.</p>`; return; }
+
+  $("events").innerHTML = items.map((p, i) => {
+    const peak = p.kind === "peak";
+    const note = app.notes.find((n) => n.epoch_ms >= p.startMs - 60000 && n.epoch_ms <= p.endMs + 60000);
+    const act = app.activities.find((x) => x.startMs <= p.startMs && x.endMs >= p.endMs);
+    return `<div class="ev" data-i="${i}">
+      <div class="r1"><span class="t">${peak ? "Focused stretch" : "Dip"}</span><span class="m">${fmtClock(p.startMs)}–${fmtClock(p.endMs)} · ${fmtDuration(p.durationMs)}</span></div>
+      <p class="why">${peak
+        ? `Sustained focus above your usual level, averaging ${p.meanValue.toFixed(2)}.`
+        : `Focus stayed below your usual level, bottoming out at ${p.lowValue.toFixed(2)}.`}</p>
+      ${note ? `<div class="noted">${esc(note.text)}</div>` : ""}
+      ${note ? "" : `<div class="evrow">
+        <input class="note-in" data-note="${i}" placeholder="What was happening? e.g. back-to-back meetings">
+        <button class="act" data-savenote="${i}">Save</button>
+      </div>`}
+      ${act
+        ? `<div class="tags"><button data-tag="${esc(act.tag)}" data-ev="${i}" aria-pressed="true">${esc(act.tag)}</button></div>`
+        : `<div class="tags"><button data-expand="${i}">+ what were you doing?</button></div>
+           <div class="tags" data-tagrow="${i}" hidden>
+             ${app.tags.map((t) => `<button data-tag="${esc(t)}" data-ev="${i}">${esc(t)}</button>`).join("")}
+           </div>`}
+    </div>`;
+  }).join("");
+
+  app._events = items;
+}
+
+$("events").addEventListener("click", async (e) => {
+  const saveI = e.target.dataset.savenote;
+  if (saveI !== undefined) {
+    const input = document.querySelector(`input[data-note="${saveI}"]`);
+    const text = input.value.trim(); if (!text) return;
+    const p = app._events[Number(saveI)];
+    const r = await fetch("/api/notes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ epoch_ms: p.startMs, text }) });
+    const out = await r.json();
+    if (out.ok) { app.notes.push(out.note); renderEvents(); }
+    return;
+  }
+  const exp = e.target.dataset.expand;
+  if (exp !== undefined) {
+    document.querySelector(`[data-tagrow="${exp}"]`).hidden = false;
+    e.target.closest(".tags").hidden = true;
+    return;
+  }
+  const tag = e.target.dataset.tag;
+  if (tag) {
+    const p = app._events[Number(e.target.dataset.ev)];
+    const r = await fetch("/api/activities", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ startMs: p.startMs, endMs: p.endMs, tag }) });
+    const out = await r.json();
+    if (out.ok) { app.activities.push(out.activity); renderEvents(); renderStage(); }
+  }
+});
+
+/* ---------------- exports ---------------- */
 $("btnCopy").addEventListener("click", async () => {
-  const text = toClipboardSummary(app.analysis, app.notes);
+  const text = toClipboardSummary(app.view, app.notes);
   try { await navigator.clipboard.writeText(text); $("copyNote").textContent = "Copied — paste it into any assistant."; }
-  catch { $("copyNote").textContent = "Couldn't reach the clipboard; the summary is in the Diagnostics tab."; $("lastRetrieval").textContent = text; }
+  catch { $("copyNote").textContent = "Clipboard unavailable; use Download instead."; }
   setTimeout(() => ($("copyNote").textContent = ""), 4000);
 });
-
 $("btnMd").addEventListener("click", () => {
-  const md = toMarkdown(app.analysis, app.notes);
-  const url = URL.createObjectURL(new Blob([md], { type: "text/markdown" }));
-  const a = document.createElement("a");
-  a.href = url; a.download = `debrief-${new Date(app.analysis.startMs).toISOString().slice(0, 10)}.md`;
-  a.click(); URL.revokeObjectURL(url);
+  const url = URL.createObjectURL(new Blob([toMarkdown(app.view, app.notes)], { type: "text/markdown" }));
+  const el = document.createElement("a");
+  el.href = url; el.download = `debrief-${new Date(app.full.startMs).toISOString().slice(0, 10)}.md`;
+  el.click(); URL.revokeObjectURL(url);
 });
 
-/* ---------- chart ---------- */
-function drawChart() {
-  const a = app.analysis;
-  const cv = $("chart");
-  if (!a || !cv.clientWidth) return;
-  const dpr = window.devicePixelRatio || 1;
-  const W = cv.clientWidth, H = 230;
-  cv.width = W * dpr; cv.height = H * dpr;
-  const ctx = cv.getContext("2d");
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, W, H);
-
-  const css = getComputedStyle(document.documentElement);
-  const line = css.getPropertyValue("--line").trim();
-  const ink3 = css.getPropertyValue("--ink-3").trim();
-  const fc = css.getPropertyValue("--focus-c").trim();
-  const cc = css.getPropertyValue("--calm-c").trim();
-
-  const padL = 34, padR = 40, padT = 12, padB = 22;
-  const w = W - padL - padR, h = H - padT - padB;
-  const t0 = a.startMs, t1 = a.endMs;
-  const x = (t) => padL + ((t - t0) / (t1 - t0)) * w;
-  const yMax = Math.max(0.8, a.focus.p90 * 1.35, a.calm.p90 * 1.35);
-  const y = (v) => padT + h - (Math.min(v, yMax) / yMax) * h;
-
-  // baseline band
-  ctx.fillStyle = fc + "1f";
-  ctx.fillRect(padL, y(a.focus.p90), w, Math.max(1, y(a.focus.p10) - y(a.focus.p90)));
-
-  // gridlines
-  ctx.strokeStyle = line; ctx.lineWidth = 1; ctx.font = "10px ui-monospace,monospace"; ctx.fillStyle = ink3;
-  for (let v = 0; v <= yMax; v += 0.2) {
-    const yy = Math.round(y(v)) + 0.5;
-    ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
-    ctx.fillText(v.toFixed(1), 4, yy + 3);
-  }
-
-  // slump / peak shading
-  a.slumps.forEach((p) => { ctx.fillStyle = css.getPropertyValue("--stop").trim() + "22"; ctx.fillRect(x(p.startMs), padT, Math.max(1, x(p.endMs) - x(p.startMs)), h); });
-  a.peaks.forEach((p) => { ctx.fillStyle = fc + "22"; ctx.fillRect(x(p.startMs), padT, Math.max(1, x(p.endMs) - x(p.startMs)), h); });
-
-  // A break in recording is a gap, not a straight line between two moments hours apart.
-  const gapLimit = Math.max(a.medianStepMs * 5, 60_000);
-  const drawSeries = (series, colour) => {
-    if (!series.length) return;
-    // Downsample to roughly one point per pixel so long sessions stay fast.
-    const step = Math.max(1, Math.floor(series.length / w));
-    ctx.beginPath(); ctx.strokeStyle = colour; ctx.lineWidth = 1.4; ctx.lineJoin = "round";
-    let pen = false;
-    for (let i = 0; i < series.length; i += step) {
-      const p = series[i];
-      const prev = series[Math.max(0, i - step)];
-      const px = x(p.t), py = y(p.v);
-      if (!pen || (i > 0 && p.t - prev.t > gapLimit)) { ctx.moveTo(px, py); pen = true; }
-      else ctx.lineTo(px, py);
-    }
-    ctx.stroke();
-  };
-  drawSeries(a.calmSeries, cc);
-  drawSeries(a.focusSeries, fc);
-
-  // time axis
-  ctx.fillStyle = ink3;
-  const ticks = 5;
-  for (let i = 0; i <= ticks; i++) {
-    const t = t0 + ((t1 - t0) * i) / ticks;
-    const label = fmtClock(t);
-    const px = x(t);
-    ctx.fillText(label, Math.min(W - 42, Math.max(padL, px - 20)), H - 6);
-  }
-}
-window.addEventListener("resize", () => { if (app.analysis) drawChart(); });
-
-/* ---------- guide ---------- */
+/* ---------------- guide ---------------- */
 fetch("/search-index.json").then((r) => r.json()).then((d) => {
   app.index = buildIndex(d.chunks);
-  $("starters").innerHTML = STARTER_QUESTIONS.map((q) => `<button data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("");
-  $("starters").addEventListener("click", (e) => { if (e.target.dataset.q) { $("q").value = e.target.dataset.q; sendQuestion(); } });
-  addMsg("Ask me about the headset, the numbers, how to run this, or the session you have loaded. Every answer says where it came from, and if I don't know I'll say so.", []);
+  $("starters").innerHTML = STARTER_QUESTIONS.map((q) => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  $("starters").addEventListener("click", (e) => { if (e.target.dataset.q) { $("q").value = e.target.dataset.q; sendQ(); } });
+  addMsg("Ask me about the headset, the numbers, or this session. Every answer says where it came from, and if I don't know I'll say so.", []);
 });
-
-/** The notes are Markdown, so render the little of it that appears in answers. */
-function renderLight(text) {
-  const safe = escapeHtml(text);
-  return safe
-    .split(/\n/)
-    .map((line) => {
-      const bullet = line.match(/^\s*[-*]\s+(.*)$/);
-      return bullet ? `<li>${bullet[1]}</li>` : line;
-    })
-    .join("\n")
-    .replace(/(<li>[\s\S]*?<\/li>)(?!\n<li>)/g, "<ul style=\"margin:6px 0;padding-left:18px\">$1</ul>")
-    .replace(/<\/ul>\n<ul[^>]*>/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
-    .replace(/`(.+?)`/g, "<code>$1</code>");
+function light(t) {
+  return esc(t).split(/\n/).map((l) => { const b = l.match(/^\s*[-*]\s+(.*)$/); return b ? `<li>${b[1]}</li>` : l; }).join("\n")
+    .replace(/(<li>[\s\S]*?<\/li>)(?!\n<li>)/g, "<ul>$1</ul>").replace(/<\/ul>\n<ul>/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/`(.+?)`/g, "<code>$1</code>");
 }
-
 function addMsg(text, sources, opts = {}) {
   const div = document.createElement("div");
   div.className = `msg${opts.me ? " me" : ""}`;
-  if (opts.me) div.textContent = text;
-  else div.innerHTML = renderLight(text);
+  if (opts.me) div.textContent = text; else div.innerHTML = light(text);
   if (sources?.length) {
     const s = document.createElement("span");
     s.className = "src";
-    s.textContent = "Sources: " + sources.map((x) => `${x.title}${x.section ? " § " + x.section : ""}`).join(" · ");
-    div.appendChild(s);
-  }
-  if (opts.shapingNote) {
-    const s = document.createElement("span");
-    s.className = "shape";
-    s.textContent = opts.shapingNote;
+    s.textContent = `From: ${sources[0].title}${sources.length > 1 ? ` and ${sources.length - 1} more` : ""}`;
     div.appendChild(s);
   }
   $("chat").appendChild(div);
   $("chat").scrollTop = $("chat").scrollHeight;
 }
-
-function sendQuestion() {
+function sendQ() {
   const q = $("q").value.trim();
   if (!q || !app.index) return;
-  addMsg(q, [], { me: true });
-  $("q").value = "";
-  const res = ask(q, {
-    index: app.index,
-    analysis: app.analysis,
-    shaping: app.engine.shaping,
-    adaptive: $("adaptive").checked,
-  });
-  addMsg(res.text, res.sources, { shapingNote: res.shapingNote });
-  app.lastRetrieval = res;
-  $("lastRetrieval").textContent = JSON.stringify({ question: q, kind: res.kind, adaptive: $("adaptive").checked, state: app.engine.state, sources: res.sources }, null, 2);
+  addMsg(q, [], { me: true }); $("q").value = "";
+  const res = ask(q, { index: app.index, analysis: app.view, shaping: app.engine.shaping, adaptive: true });
+  addMsg(res.text, res.sources);
+  $("lastRetrieval").textContent = JSON.stringify({ question: q, kind: res.kind, state: app.engine.state, sources: res.sources }, null, 2);
 }
-$("send").addEventListener("click", sendQuestion);
-$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") sendQuestion(); });
+$("send").addEventListener("click", sendQ);
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") sendQ(); });
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
+/* ---------------- tier 3 live ---------------- */
+const BANDS = ["delta", "theta", "alpha", "beta", "gamma"];
+$("bandBars").innerHTML = BANDS.map(() => `<i style="height:2px"></i>`).join("");
+const es = new EventSource("/api/stream");
+es.onmessage = (e) => {
+  const f = JSON.parse(e.data);
+  $("mFocus").textContent = f.focus.toFixed(3);
+  $("mCalm").textContent = f.calm.toFixed(3);
+  $("bFocus").style.width = `${Math.min(100, f.focus * 100)}%`;
+  $("bCalm").style.width = `${Math.min(100, f.calm * 100)}%`;
+  const max = Math.max(...BANDS.map((b) => f.bands[b]), 0.01);
+  document.querySelectorAll("#bandBars i").forEach((el, i) => { el.style.height = `${Math.max(2, (f.bands[BANDS[i]] / max) * 100)}%`; });
+  $("elec").innerHTML = Object.entries(f.quality || {}).map(([n, s]) =>
+    `<span class="el ${s === "noContact" ? "off" : s === "bad" ? "bad" : ""}" title="${n}: ${s}">${n}</span>`).join("");
+  const bad = Object.values(f.quality || {}).filter((s) => s === "bad" || s === "noContact").length;
+  $("elecNote").textContent = bad ? `${bad} sensor${bad > 1 ? "s" : ""} not reading — those windows are excluded.` : "All sensors reading normally.";
+  app.engine.push({ t: f.t, focus: f.focus, calm: f.calm, quality: f.signal_quality });
+  $("stateText").textContent = app.engine.state;
+  $("stateDump").textContent = JSON.stringify({ state: app.engine.state, candidate: app.engine.candidate, buffered: app.engine.buffer.length, shaping: app.engine.shaping }, null, 2);
+};
 
-loadSessions();
+boot();

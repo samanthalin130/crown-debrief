@@ -9,11 +9,14 @@
 // handoff. If two-way messaging is ever needed, a WebSocket can be added then.
 
 import { createServer } from "node:http";
-import { readFile, readdir, appendFile, mkdir, stat } from "node:fs/promises";
+import { readFile, readdir, appendFile, mkdir, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, extname, dirname, basename, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createMockSource } from "./core/mock-source.js";
+import { parseCsv } from "./core/csv.js";
+import { analyse } from "./core/stats.js";
+import { buildBaseline, addHourlyNorms } from "./core/baseline.js";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 5173);
@@ -60,6 +63,78 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    // The cross-session baseline. Computed here because it needs every CSV, and a
+    // browser shouldn't download 70MB to work out what your normal Tuesday is.
+    if (path === "/api/baseline") {
+      const dir = join(ROOT, "data");
+      await mkdir(dir, { recursive: true });
+      const names = (await readdir(dir)).filter((f) => f.endsWith(".csv"));
+      const analyses = [];
+      for (const name of names) {
+        const { rows } = parseCsv(await readFile(join(dir, name), "utf8"));
+        if (!rows.length) continue;
+        const a = analyse(rows);
+        if (a.ok) analyses.push(a);
+      }
+      const store = addHourlyNorms(buildBaseline(analyses), analyses);
+      // Strip the heavy series before sending.
+      const light = {
+        ready: store.ready, sessionCount: store.sessionCount, windowCount: store.windowCount,
+        needed: store.needed, byHour: store.byHour,
+        metrics: Object.fromEntries(Object.entries(store.metrics).map(([k, v]) => [k, { n: v.n, mean: v.mean, sd: v.sd }])),
+        focus: { mean: null, sd: null }, calm: { mean: null, sd: null },
+      };
+      // Row-level norms, so a session can be classified against your normal.
+      const allFocus = analyses.flatMap((a) => a.focusSeries.map((p) => p.v));
+      const allCalm = analyses.flatMap((a) => a.calmSeries.map((p) => p.v));
+      const m = (xs) => xs.reduce((x, y) => x + y, 0) / (xs.length || 1);
+      const sdv = (xs) => { const mu = m(xs); return Math.sqrt(xs.reduce((x, y) => x + (y - mu) ** 2, 0) / Math.max(1, xs.length - 1)); };
+      if (store.ready && allFocus.length) {
+        light.focus = { mean: m(allFocus), sd: sdv(allFocus) };
+        light.calm = { mean: m(allCalm), sd: sdv(allCalm) };
+      }
+      return json(res, 200, light);
+    }
+
+    if (path === "/api/tags") {
+      const p = join(ROOT, "notes", "tags.json");
+      const DEFAULTS = ["deep work", "meetings", "email", "reading", "admin", "break", "after lunch", "tired"];
+      if (!existsSync(p)) return json(res, 200, { tags: DEFAULTS });
+      try { return json(res, 200, { tags: JSON.parse(await readFile(p, "utf8")) }); }
+      catch { return json(res, 200, { tags: DEFAULTS }); }
+    }
+
+    if (path === "/api/activities" && req.method === "GET") {
+      const date = (url.searchParams.get("date") || "").slice(0, 10);
+      const p = join(ROOT, "notes", `activities-${date}.jsonl`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !existsSync(p)) return json(res, 200, { activities: [] });
+      const activities = (await readFile(p, "utf8")).split(/\r?\n/).filter(Boolean)
+        .map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+      return json(res, 200, { activities });
+    }
+
+    if (path === "/api/activities" && req.method === "POST") {
+      let body = "";
+      for await (const c of req) { body += c; if (body.length > 10_000) return json(res, 413, { error: "Too long." }); }
+      let act;
+      try { act = JSON.parse(body); } catch { return json(res, 400, { error: "Could not read that." }); }
+      if (!Number.isFinite(act.startMs) || !Number.isFinite(act.endMs) || !act.tag) {
+        return json(res, 400, { error: "An activity needs a start, an end, and a tag." });
+      }
+      const date = new Date(act.startMs).toISOString().slice(0, 10);
+      await mkdir(join(ROOT, "notes"), { recursive: true });
+      const row = { startMs: act.startMs, endMs: act.endMs, tag: String(act.tag).slice(0, 40), person_id: act.person_id || "me", created_ms: Date.now() };
+      await appendFile(join(ROOT, "notes", `activities-${date}.jsonl`), JSON.stringify(row) + "\n");
+
+      // Keep the reusable tag vocabulary up to date. Free text every session would
+      // make cross-session comparison impossible, so tags accumulate instead.
+      const tp = join(ROOT, "notes", "tags.json");
+      let tags = ["deep work", "meetings", "email", "reading", "admin", "break", "after lunch", "tired"];
+      if (existsSync(tp)) { try { tags = JSON.parse(await readFile(tp, "utf8")); } catch {} }
+      if (!tags.includes(row.tag)) { tags.push(row.tag); await writeFile(tp, JSON.stringify(tags, null, 2)); }
+      return json(res, 200, { ok: true, activity: row });
+    }
+
     if (path === "/api/sessions") {
       const dir = join(ROOT, "data");
       await mkdir(dir, { recursive: true });
@@ -69,7 +144,9 @@ const server = createServer(async (req, res) => {
         const s = await stat(join(dir, name));
         out.push({ name, bytes: s.size, modified: s.mtimeMs });
       }
-      out.sort((a, b) => b.modified - a.modified);
+      // Newest session first, by the date in the filename rather than file mtime —
+      // a batch of generated files all share an mtime and would sort arbitrarily.
+      out.sort((a, b) => b.name.localeCompare(a.name));
       return json(res, 200, { sessions: out });
     }
 
