@@ -19,7 +19,9 @@ import { analyse } from "./core/stats.js";
 import { buildBaseline, addHourlyNorms } from "./core/baseline.js";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const PORT = Number(process.env.PORT || 5173);
+// 5273, not 5173: Vite and most front-end dev servers default to 5173, and a
+// collision there is the most likely reason this fails to start on a dev machine.
+const PORT = Number(process.env.PORT || 5273);
 
 // .env is read by hand so the project keeps its zero-dependency promise.
 const env = { ...process.env };
@@ -214,6 +216,26 @@ const server = createServer(async (req, res) => {
 });
 
 const sessionCount = (await readdirSafe(join(ROOT, "data"))).filter((f) => f.endsWith(".csv")).length;
+
+// A stack trace is not a useful answer to "the port is busy".
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`\n  Port ${PORT} is already in use.\n`);
+    console.error(`  Something else is listening there — often another dev server, or an`);
+    console.error(`  earlier run of this one still going in another terminal tab.\n`);
+    console.error(`  See what it is:   lsof -i :${PORT}`);
+    console.error(`  Stop it:          lsof -ti:${PORT} | xargs kill`);
+    console.error(`  Or use another:   PORT=${PORT + 1} npm start\n`);
+    console.error(`  If it is an older copy of this server, restart it rather than reusing it —`);
+    console.error(`  the page would load but the newer endpoints would be missing.\n`);
+  } else if (err.code === "EACCES") {
+    console.error(`\n  Not allowed to open port ${PORT}. Ports below 1024 need elevated permissions;`);
+    console.error(`  try PORT=5273 npm start.\n`);
+  } else {
+    console.error(`\n  The server could not start: ${err.message}\n`);
+  }
+  process.exit(1);
+});
 
 server.listen(PORT, () => {
   console.log(`\n  Crown Debrief — dev panel`);

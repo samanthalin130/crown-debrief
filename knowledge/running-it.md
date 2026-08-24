@@ -29,7 +29,7 @@ Set these as environment variables when running the logger.
 - `OUT_FILE` — where to write. Defaults to `focus-log.csv`.
 - `DURATION_SEC` — stop automatically after this many seconds. Defaults to 0, meaning run until you press Ctrl+C.
 
-For the dev panel, `PORT` changes the port (default 5173) and `MISTRAL_API_KEY` enables the optional model-written answers.
+For the dev panel, `PORT` changes the port (default 5273 — deliberately not 5173, which Vite and most front-end dev servers use) and `MISTRAL_API_KEY` enables the optional model-written answers.
 
 ## The five tabs
 
