@@ -165,3 +165,28 @@ button.act.primary{background:var(--accent);border-color:var(--accent);color:#ff
 .el.off{background:var(--st-none-soft);color:var(--ink-3)}
 pre{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:7px;padding:11px;overflow-x:auto;color:var(--ink-2);margin:0;max-height:260px}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- How it works ---- */
+.ht-lede{font-size:15px;color:var(--ink-2);max-width:66ch;margin:0 0 16px}
+.ht-note{font-size:13.5px;color:var(--ink-3);max-width:66ch;margin:14px 0 0}
+.flowbox{background:var(--surface-2);border:1px solid var(--line-2);border-radius:9px;padding:14px;overflow-x:auto}
+.flowsvg{display:block;width:100%;min-width:640px;height:auto}
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps>li{counter-increment:s;position:relative;padding:0 0 18px 42px;font-size:14.5px;color:var(--ink-2);max-width:70ch}
+.steps>li:last-child{padding-bottom:0}
+.steps>li::before{content:counter(s);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);font-family:var(--mono);font-size:12px;display:flex;align-items:center;justify-content:center}
+.steps b{color:var(--ink)}
+.cmd{display:flex;align-items:center;gap:8px;margin-top:8px;background:var(--panel);border:1px solid var(--panel-line);border-radius:7px;padding:8px 10px 8px 12px;max-width:520px}
+.cmd code{flex:1;font-family:var(--mono);font-size:12.5px;color:var(--panel-ink);background:none;border:none;padding:0}
+.cmd .copy{font:inherit;font-size:11.5px;background:rgba(255,255,255,.08);border:1px solid var(--panel-line);color:var(--panel-ink);border-radius:5px;padding:4px 10px;cursor:pointer}
+.cmd .copy:hover{border-color:var(--accent)}
+.cmd .copy[data-done="1"]{background:var(--st-settle);border-color:var(--st-settle);color:#06120C}
+.ht-callout{border-left:3px solid var(--st-settle);background:var(--st-settle-soft);padding:13px 16px;border-radius:0 8px 8px 0;margin-top:18px;font-size:14px;color:var(--ink-2);max-width:70ch}
+.ht-callout b{color:var(--ink);display:block;margin-bottom:4px}
+.ht-list{margin:0;padding-left:20px;max-width:70ch}
+.ht-list li{font-size:14.5px;color:var(--ink-2);margin-bottom:9px}
+.ht-list b{color:var(--ink)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl td{padding:11px 0;border-bottom:1px solid var(--line-2);color:var(--ink-2);vertical-align:top}
+.tbl td:first-child{width:210px;padding-right:18px;color:var(--ink)}
+.tbl tr:last-child td{border-bottom:none}

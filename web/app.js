@@ -40,6 +40,21 @@ $("detailLink").addEventListener("click", (e) => {
   show("detail");
 });
 
+// Copy buttons on the How it works screen — handy when demonstrating to a room.
+document.addEventListener("click", async (e) => {
+  const text = e.target.dataset?.copy;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    e.target.dataset.done = "1";
+    const was = e.target.textContent;
+    e.target.textContent = "Copied";
+    setTimeout(() => { e.target.textContent = was; delete e.target.dataset.done; }, 1600);
+  } catch {
+    e.target.textContent = "Select it manually";
+  }
+});
+
 /* ---------------- loading ---------------- */
 async function boot() {
   const [sess, base, tags] = await Promise.all([

@@ -19,6 +19,7 @@
   <nav role="tablist">
     <button role="tab" data-tab="today" aria-selected="true">Today</button>
     <button role="tab" data-tab="session" aria-selected="false">Session</button>
+    <button role="tab" data-tab="how" aria-selected="false">How it works</button>
     <button role="tab" data-tab="detail" aria-selected="false" hidden>Detail</button>
   </nav>
 
@@ -94,6 +95,118 @@
       <div class="card" style="margin-top:13px">
         <h2>What stood out <span id="selNote" style="text-transform:none;letter-spacing:0;font-family:var(--sans)"></span></h2>
         <div id="events"></div>
+      </div>
+    </section>
+
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section class="panel" id="p-how">
+      <div class="card">
+        <h2>Where the data comes from</h2>
+        <p class="ht-lede">The headset never talks to this laptop directly. It has wifi in it, and it sends what it reads to Neurosity's servers. Anything that wants that data — their console, their phone app, this project — signs in to that cloud and asks for it.</p>
+        <div class="flowbox">
+          <svg viewBox="0 0 880 220" role="img" aria-label="The Crown sends readings over wifi to Neurosity's cloud. logger.js signs in to that cloud and writes a CSV file. Crown Debrief reads the CSV file." class="flowsvg">
+            <defs>
+              <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/>
+              </marker>
+            </defs>
+            <g font-family="system-ui,sans-serif">
+              <rect x="6" y="62" width="150" height="66" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
+              <text x="81" y="90" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">Crown</text>
+              <text x="81" y="110" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">on your head, on wifi</text>
+
+              <line x1="160" y1="95" x2="212" y2="95" stroke="var(--ink-3)" stroke-width="1.5" marker-end="url(#ar)"/>
+
+              <rect x="218" y="62" width="160" height="66" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
+              <text x="298" y="90" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">Neurosity cloud</text>
+              <text x="298" y="110" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">your account lives here</text>
+
+              <line x1="382" y1="95" x2="434" y2="95" stroke="var(--ink-3)" stroke-width="1.5" marker-end="url(#ar)"/>
+
+              <rect x="440" y="52" width="168" height="86" rx="9" fill="var(--accent-soft)" stroke="var(--accent)"/>
+              <text x="524" y="82" text-anchor="middle" font-size="14" font-weight="600" fill="var(--accent-ink)">logger.js</text>
+              <text x="524" y="101" text-anchor="middle" font-size="11.5" fill="var(--accent-ink)">signs in, subscribes,</text>
+              <text x="524" y="117" text-anchor="middle" font-size="11.5" fill="var(--accent-ink)">writes a row every 2s</text>
+
+              <line x1="612" y1="95" x2="664" y2="95" stroke="var(--ink-3)" stroke-width="1.5" marker-end="url(#ar)"/>
+
+              <rect x="670" y="62" width="150" height="66" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
+              <text x="745" y="90" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">a CSV file</text>
+              <text x="745" y="110" text-anchor="middle" font-size="11.5" fill="var(--ink-3)">on your own disk</text>
+
+              <path d="M745 132 L745 168 L438 168" fill="none" stroke="var(--ink-3)" stroke-width="1.5" marker-end="url(#ar)"/>
+              <rect x="270" y="150" width="162" height="40" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
+              <text x="351" y="175" text-anchor="middle" font-size="13.5" font-weight="600" fill="var(--ink)">Crown Debrief</text>
+
+              <text x="524" y="34" text-anchor="middle" font-size="11" fill="var(--ink-3)">the only file that knows Neurosity exists</text>
+              <line x1="524" y1="40" x2="524" y2="50" stroke="var(--line)" stroke-width="1"/>
+            </g>
+          </svg>
+        </div>
+        <p class="ht-note">Everything to the right of the CSV never touches the internet. That is deliberate: it means this runs on sample data, runs offline, and runs for someone who has no Neurosity account at all.</p>
+      </div>
+
+      <div class="card">
+        <h2>Try it in thirty seconds · no headset needed</h2>
+        <ol class="steps">
+          <li><b>Get the code running.</b> You need Node installed. Nothing else — no dependencies, no account, no API key.
+            <div class="cmd"><code>cd crown-debrief</code><button class="copy" data-copy="cd crown-debrief">Copy</button></div></li>
+          <li><b>Make some sample data.</b> Writes a synthetic fortnight into <code>data/</code>. It is labelled as synthetic everywhere it appears, so it can never be mistaken for a real recording.
+            <div class="cmd"><code>npm run sample</code><button class="copy" data-copy="npm run sample">Copy</button></div></li>
+          <li><b>Start it.</b> Then open the address it prints.
+            <div class="cmd"><code>npm start</code><button class="copy" data-copy="npm start">Copy</button></div></li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>Recording a real session</h2>
+        <ol class="steps">
+          <li><b>Wake the headset.</b> Hold the power button until it lights up, then check it appears as online at <a href="https://console.neurosity.co" target="_blank" rel="noopener">console.neurosity.co</a>. A Crown that has been in a drawer will usually need to rejoin wifi.</li>
+          <li><b>Put your credentials in a file called <code>.env</code>.</b> Copy the example and fill in your Neurosity email and password. That file is excluded from version control and never leaves the machine.
+            <div class="cmd"><code>cp .env.example .env</code><button class="copy" data-copy="cp .env.example .env">Copy</button></div></li>
+          <li><b>Install the one real dependency.</b> The Neurosity SDK is only needed for live recording; everything else runs without it.
+            <div class="cmd"><code>npm install</code><button class="copy" data-copy="npm install">Copy</button></div></li>
+          <li><b>Fit it properly, then record.</b> Electrodes need to reach scalp, not sit on hair. Work normally for an hour or more — short sessions do not give patterns room to appear.
+            <div class="cmd"><code>npm run log:live</code><button class="copy" data-copy="npm run log:live">Copy</button></div></li>
+          <li><b>Stop with Ctrl+C.</b> The new CSV lands in <code>data/</code> and shows up in the session list on its own. Nothing else needs changing.</li>
+        </ol>
+        <div class="ht-callout">
+          <b>Check the data is real before trusting it.</b> Close your eyes for thirty seconds, then open them for thirty. Alpha should rise while they are shut — it has been the most reproducible finding in EEG since the 1920s, which makes it the one thing you can test that has a known right answer. If it does not move, the problem is the fit or the connection, and you have found out in a minute instead of after a day of confusing results.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Reading a session</h2>
+        <ol class="steps">
+          <li><b>Start with the one number.</b> Deep work is the time spent meaningfully above your own normal. It is minutes rather than a score on purpose — minutes cannot be misread as a percentage, and counting them does not grade anyone's brain.</li>
+          <li><b>Read position, not size, on the gauges.</b> The shaded band is your usual range. Inside it is a normal day. There is no target to hit.</li>
+          <li><b>Look at the ribbon for the shape of the day.</b> Colour carries meaning and nothing else uses those colours. Hatching means the signal was too poor to read, and a faint gap means recording stopped — neither is a brain state, and neither is ever drawn as one.</li>
+          <li><b>Say what you were doing.</b> The headset records when something changed and is permanently silent on why. A one-line note against a dip is the only thing that can supply it, and after a few weeks those notes turn the chart into an explanation.</li>
+          <li><b>Ask the guide anything.</b> On the Today screen. Every answer says where it came from, and when it does not know it says so rather than guessing.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>When something goes wrong</h2>
+        <table class="tbl">
+          <tr><td><b>"Port is already in use"</b></td><td>Another dev server is on that port. The message tells you how to find and stop it, or use <code>PORT=5274 npm start</code>.</td></tr>
+          <tr><td><b>Coverage is low</b></td><td>The electrodes were not reaching scalp. Below 75% treat the rest as provisional; below 50% refit and record again.</td></tr>
+          <tr><td><b>"Learning what's normal for you"</b></td><td>Working as intended. Comparisons need ten sessions. Until then the app says so rather than inventing one.</td></tr>
+          <tr><td><b>Live mode will not connect</b></td><td>Check the Crown is online in the Neurosity console first, then that <code>.env</code> has the right email, password and device ID.</td></tr>
+          <tr><td><b>Numbers look wrong</b></td><td>Run <code>npm test</code>. Seventy-five checks cover the parsing, the quality gate and the statistics. If those pass, suspect the headset fit before the code.</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>What this is not</h2>
+        <p class="ht-lede">Worth saying plainly, because every design choice here makes the data feel more authoritative than it is.</p>
+        <ul class="ht-list">
+          <li><b>Not a medical device.</b> Focus and calm are probability scores from a consumer headset. Nothing here is a health assessment and the app makes no clinical claims.</li>
+          <li><b>Not a measurement.</b> Neurosity derives focus from gamma and calm from alpha using models trained in advance. A reading of 0.42 means a classifier put the probability at 0.42 — and their own documentation notes that anything above 0.3 is already significant.</li>
+          <li><b>Not a step toward moving a robotic arm, yet.</b> Focus and calm say how you are. Imagining a movement is a different signal saying what you want, and the second cannot be derived from the first. What this does build is the recording discipline that work would depend on.</li>
+          <li><b>Not sending your data anywhere.</b> Recordings and notes are files on this machine. The published version reads a dropped file inside the visitor's own browser and uploads nothing.</li>
+        </ul>
       </div>
     </section>
 
