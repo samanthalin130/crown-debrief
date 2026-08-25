@@ -1,7 +1,7 @@
 {
-  "name": "crown-debrief",
+  "name": "session-debrief",
   "version": "0.1.0",
-  "description": "End-of-day brain data debrief and an adaptive guide for the Neurosity Crown. Runs with zero dependencies.",
+  "description": "Reads a recorded session from a Neurosity Crown EEG headset and tells you what happened in it, in plain language.",
   "type": "module",
   "scripts": {
     "start": "node server.js",

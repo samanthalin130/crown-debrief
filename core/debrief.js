@@ -58,23 +58,25 @@ export function narrative(a) {
 
   // What "normal" looked like today.
   p.push(
-    `Your focus sat around ${a.focus.p50.toFixed(2)} for most of it, ranging from about ${a.focus.p10.toFixed(2)} ` +
-    `to ${a.focus.p90.toFixed(2)}. That range is your baseline for this session — everything below is measured ` +
-    `against it rather than against a fixed number, because what counts as high focus differs a lot between people.`
+    `Your focus readings sat around ${a.focus.p50.toFixed(2)} for most of it, mostly between ${a.focus.p10.toFixed(2)} ` +
+    `and ${a.focus.p90.toFixed(2)}. Everything here is measured against that range — ` +
+    `rather than against a fixed number, because what counts as high focus differs enormously between people.`
   );
 
   // Peaks.
   if (a.peaks.length) {
     const best = a.peaks[0];
-    let s = `Your longest stretch above your own baseline ran ${fmtClock(best.startMs)} to ${fmtClock(best.endMs)}, ` +
-            `${fmtDuration(best.durationMs)} of it, averaging ${best.meanValue.toFixed(2)}.`;
+    // "Baseline" is jargon and a raw reading like 0.55 means nothing on its own,
+    // so the headline sentence carries neither.
+    let s = `Your longest unbroken stretch of focus ran ${fmtClock(best.startMs)} to ${fmtClock(best.endMs)} \u2014 ` +
+            `${fmtDuration(best.durationMs)} of it, well above your usual level.`;
     if (a.peaks.length > 1) {
       s += ` There ${a.peaks.length === 2 ? "was one other" : `were ${a.peaks.length - 1} others`}: ` +
            a.peaks.slice(1).map((k) => `${fmtClock(k.startMs)}–${fmtClock(k.endMs)} (${fmtDuration(k.durationMs)})`).join(", ") + ".";
     }
     p.push(s);
   } else {
-    p.push(`Nothing held above your baseline long enough to call it a focused stretch — the session stayed fairly flat.`);
+    p.push(`Nothing held above your usual level long enough to count as a focused stretch — the session stayed fairly flat.`);
   }
 
   // Slumps.
@@ -86,7 +88,7 @@ export function narrative(a) {
       (a.slumps.length > 1 ? `, and there ${a.slumps.length === 2 ? "was one more" : `were ${a.slumps.length - 1} more`} like it.` : ".")
     );
   } else {
-    p.push(`No sustained dips — nothing dropped below your baseline for long enough to count.`);
+    p.push(`No sustained dips — nothing dropped below your usual level for long enough to count.`);
   }
 
   // Time in state.

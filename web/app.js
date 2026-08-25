@@ -1,20 +1,22 @@
-// Crown Debrief — three screens.
+// Session Debrief — three screens.
 //   Today   (tier 1) one number, one comparison, one sentence
 //   Session (tier 2) the session as named states over time
 //   Detail  (tier 3) raw instrument readouts, reached deliberately
 //
 // Everything imports from /core/, the same modules Node runs.
 
-import { parseCsv } from "/core/csv.js";
-import { analyse, classify, zScore } from "/core/stats.js";
-import { narrative, suggestion, fmtClock, fmtDuration } from "/core/debrief.js";
-import { toMarkdown, toClipboardSummary } from "/core/format.js";
-import { buildIndex } from "/core/search.js";
-import { ask, STARTER_QUESTIONS } from "/core/guide.js";
-import { StateEngine } from "/core/state.js";
-import { describe, deltaPhrase, MIN_SESSIONS_FOR_BASELINE } from "/core/vocab.js";
-import { zForHour } from "/core/baseline.js";
-import { binSession, drawRibbon, drawDeviation, STATE_LABEL } from "/ribbon.js";
+import { parseCsv } from "./core/csv.js";
+import { analyse, classify, zScore } from "./core/stats.js";
+import { narrative, suggestion, fmtClock, fmtDuration } from "./core/debrief.js";
+import { toMarkdown, toClipboardSummary } from "./core/format.js";
+import { buildIndex } from "./core/search.js";
+import { ask, STARTER_QUESTIONS } from "./core/guide.js";
+import { StateEngine } from "./core/state.js";
+import { describe, deltaPhrase, MIN_SESSIONS_FOR_BASELINE } from "./core/vocab.js";
+import { zForHour } from "./core/baseline.js";
+import { binSession, drawRibbon, drawDeviation, STATE_LABEL } from "./ribbon.js";
+import { source } from "./data-source.js";
+import { EXPLAIN } from "./core/explain.js";
 
 const $ = (id) => document.getElementById(id);
 const pctS = (x) => `${Math.round(x * 100)}%`;
@@ -26,6 +28,52 @@ const app = {
   index: null, engine: new StateEngine({ dwellMs: 6000 }),
   cells: [], range: "all", sel: null,
 };
+
+/* ---------------- explainable terms ----------------
+   Any term a first-time reader might not know is rendered as a button. Clicking
+   it opens the explanation in place. One shared panel per card keeps the layout
+   from jumping around as things open and close. */
+function ex(key, label, opts = {}) {
+  const e = EXPLAIN[key];
+  if (!e) return esc(label);
+  const cls = ["ex", opts.plain ? "plain" : "", opts.big ? "ex-big" : ""].filter(Boolean).join(" ");
+  return `<button class="${cls}" data-ex="${key}" aria-expanded="false" aria-label="${esc(e.term)} — what does this mean?">${label}</button>`;
+}
+
+function explanationHtml(key) {
+  const e = EXPLAIN[key];
+  return `<h4>${esc(e.term)}</h4>
+    <p>${esc(e.what)}</p>
+    <p><span class="lbl">Where it comes from</span>${esc(e.how)}</p>
+    ${e.why ? `<p><span class="lbl">Why it's done this way</span>${esc(e.why)}</p>` : ""}
+    ${e.caveat ? `<p class="caveat"><span class="lbl">Worth knowing</span>${esc(e.caveat)}</p>` : ""}`;
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest?.("[data-ex]");
+  if (!btn) return;
+  // The panel belongs to whichever block the term sits in. The ribbon's legend is
+  // inside the dark stage, where an explanation would be unreadable, so its panel
+  // goes directly underneath the stage instead of inside it.
+  const host = btn.closest(".card") || btn.closest(".stage");
+  if (!host) return;
+  const inStage = host.classList.contains("stage");
+  let panel = inStage
+    ? (host.nextElementSibling?.classList.contains("exp") ? host.nextElementSibling : null)
+    : [...host.children].find((c) => c.classList.contains("exp"));
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.className = "exp";
+    if (inStage) host.insertAdjacentElement("afterend", panel);
+    else host.appendChild(panel);
+  }
+  const already = btn.getAttribute("aria-expanded") === "true";
+  host.querySelectorAll("[data-ex]").forEach((b) => b.setAttribute("aria-expanded", "false"));
+  if (already) { panel.hidden = true; return; }
+  btn.setAttribute("aria-expanded", "true");
+  panel.innerHTML = explanationHtml(btn.dataset.ex);
+  panel.hidden = false;
+});
 
 /* ---------------- screens ---------------- */
 function show(tab) {
@@ -57,14 +105,11 @@ document.addEventListener("click", async (e) => {
 
 /* ---------------- loading ---------------- */
 async function boot() {
-  const [sess, base, tags] = await Promise.all([
-    fetch("/api/sessions").then((r) => r.json()),
-    fetch("/api/baseline").then((r) => r.json()),
-    fetch("/api/tags").then((r) => r.json()),
-  ]);
-  app.sessions = sess.sessions || [];
+  if (source.kind === "static") setUpStaticMode();
+  const [sessions, base, tags] = await Promise.all([source.listSessions(), source.getBaseline(), source.getTags()]);
+  app.sessions = sessions;
   app.base = base;
-  app.tags = tags.tags || [];
+  app.tags = tags;
   $("baseDump").textContent = JSON.stringify({ ...base, byHour: `${Object.keys(base.byHour || {}).length} hours` }, null, 2);
 
   if (!app.sessions.length) {
@@ -77,29 +122,42 @@ async function boot() {
     const label = new Date(d + "T12:00:00").toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
     return `<option value="${s.name}">${label}</option>`;
   }).join("");
-  $("sessPick").addEventListener("change", () => openSession($("sessPick").value));
+  showFirstRun();
+  $("sessPick").onchange = () => openSession($("sessPick").value);
   await openSession(app.sessions[0].name);
 }
 
 async function openSession(name) {
   app.name = name;
-  const text = await (await fetch(`/api/session?name=${encodeURIComponent(name)}`)).text();
+  const text = await source.readSession(name);
   app.rows = parseCsv(text).rows;
   const crossBase = app.base?.ready ? { focus: app.base.focus, calm: app.base.calm } : null;
   app.full = analyse(app.rows, { baseline: crossBase });
   $("synthChip").hidden = !app.full.synthetic;
 
   const date = new Date(app.full.startMs).toISOString().slice(0, 10);
-  const [n, a] = await Promise.all([
-    fetch(`/api/notes?date=${date}`).then((r) => r.json()).catch(() => ({ notes: [] })),
-    fetch(`/api/activities?date=${date}`).then((r) => r.json()).catch(() => ({ activities: [] })),
-  ]);
-  app.notes = n.notes || [];
-  app.activities = a.activities || [];
+  const [notes, activities] = await Promise.all([source.getNotes(date), source.getActivities(date)]);
+  app.notes = notes;
+  app.activities = activities;
   app.range = "all"; app.sel = null;
   document.querySelectorAll(".filters button[data-range]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.range === "all")));
   $("clearSel").hidden = true;
   applyRange();
+}
+
+/** Shown once, to someone who has never opened this before. */
+function showFirstRun() {
+  let seen = false;
+  try { seen = localStorage.getItem("crown.seen") === "1"; } catch { seen = false; }
+  if (seen) return;
+  $("firstRun").innerHTML = `<div class="firstrun">
+    <p class="sp"><b>First time here?</b> This reads a recording from a brain-sensing headset and tells you what happened in the session. Anything with a dashed underline explains itself when you tap it.</p>
+    <button class="go" id="frGo">Show me how it works</button>
+    <button class="no" id="frNo">Got it</button>
+  </div>`;
+  const dismiss = () => { try { localStorage.setItem("crown.seen", "1"); } catch {} $("firstRun").innerHTML = ""; };
+  $("frNo").addEventListener("click", dismiss);
+  $("frGo").addEventListener("click", () => { dismiss(); show("how"); });
 }
 
 /* ---------------- range / view ---------------- */
@@ -139,14 +197,22 @@ function renderToday() {
   const a = app.view, ready = Boolean(app.base?.ready);
   const dayName = new Date(app.full.startMs).toLocaleDateString([], { weekday: "long" });
 
-  $("heroNum").textContent = fmtDuration(a.deepWorkMs);
-  $("heroLab").textContent = `Deep work · ${new Date(app.full.startMs).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}`;
+  const dateLong = new Date(app.full.startMs).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
+  // Lead with a sentence that explains itself, with the unfamiliar bits tappable.
+  $("ledeLine").innerHTML =
+    `On ${esc(dateLong)} you did <b>${fmtDuration(a.deepWorkMs)}</b> of ` +
+    ex("deepWork", "focused work", { big: true }) +
+    `, across ${fmtDuration(a.recordedMs)} ` + ex("recorded", "recorded", { plain: true }) + `.` +
+    (a.synthetic ? ` ` + ex("synthetic", "This session is sample data", { plain: true }) + `.` : "");
+  // No giant repeat of the number -- the sentence above already carries it in bold,
+  // and saying it twice was the first thing that read as clutter.
 
   if (ready) {
     const mean = app.base.metrics.deepWorkMs.mean;
     const z = app.base.metrics.deepWorkMs.sd ? (a.deepWorkMs - mean) / app.base.metrics.deepWorkMs.sd : 0;
     const d = describe(z, true);
-    $("heroDelta").innerHTML = `<span class="delta d-${d.token.replace("st-", "")}">${esc(deltaPhrase(a.deepWorkMs - mean, true, dayName))}</span>`;
+    $("heroDelta").innerHTML = `<span class="delta d-${d.token.replace("st-", "")}">` +
+      ex("vsUsual", esc(deltaPhrase(a.deepWorkMs - mean, true, dayName)), { plain: true }) + `</span>`;
   } else $("heroDelta").innerHTML = "";
 
   const s = suggestion(a);
@@ -163,9 +229,9 @@ function renderToday() {
     </div>`;
 
   $("gauges").innerHTML = [
-    ["Deep work", "deepWorkMs", a.deepWorkMs, fmtDuration(a.deepWorkMs), "st-focus"],
-    ["Settled time", "settledMs", a.settledMs, fmtDuration(a.settledMs), "st-settle"],
-    ["Longest unbroken stretch", "longestStretchMs", a.longestStretchMs, fmtDuration(a.longestStretchMs), "st-focus"],
+    [ex("deepWork", "Focused work"), "deepWorkMs", a.deepWorkMs, fmtDuration(a.deepWorkMs), "st-focus"],
+    [ex("settled", "Settled time"), "settledMs", a.settledMs, fmtDuration(a.settledMs), "st-settle"],
+    [ex("longestStretch", "Longest unbroken stretch"), "longestStretchMs", a.longestStretchMs, fmtDuration(a.longestStretchMs), "st-focus"],
   ].map(([name, key, value, shown, tok]) => gauge(name, key, value, shown, tok, ready)).join("");
 
   $("suggestion").innerHTML = s ? `<b>${esc(s.headline)}</b><p>${esc(s.body)}</p>` : "";
@@ -202,7 +268,7 @@ function gauge(name, key, value, shown, tok, ready) {
       <div class="g-band" style="left:${pos(lo)}%;width:${pos(hi) - pos(lo)}%"></div>
       <div class="g-mark" style="left:${pos(value)}%;background:var(--${tok})"></div>
     </div>
-    <div class="g-foot"><span>less</span><span>your usual range · last ${app.base.windowCount} sessions</span><span>more</span></div>
+    <div class="g-foot"><span>less</span><span>${ex("usualRange", `your usual range · last ${app.base.windowCount} sessions`, { plain: true })}</span><span>more</span></div>
   </div>`;
 }
 
@@ -242,6 +308,7 @@ function renderStage() {
 
   // 24-hour on the axis: unambiguous, compact, and the usual convention for a time scale.
   const axisTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  wireLegend();
   const ticks = Math.max(4, Math.min(8, Math.round(span / 3_600_000)));
   $("axis").innerHTML = Array.from({ length: ticks + 1 }, (_, i) =>
     `<span>${axisTime(app.win.from + (span * i) / ticks)}</span>`).join("");
@@ -292,8 +359,15 @@ stage.addEventListener("pointermove", (e) => {
 stage.addEventListener("pointerleave", () => {
   pill?.remove(); line?.remove(); pill = null; line = null;
 });
-stage.addEventListener("pointerdown", (e) => { dragFrom = stageX(e).x; stage.setPointerCapture(e.pointerId); });
+stage.addEventListener("pointerdown", (e) => {
+  // Don't start a drag-select on the legend or any control inside the stage.
+  // Capturing the pointer here would retarget the click and swallow it.
+  if (e.target.closest("button, .legend")) return;
+  dragFrom = stageX(e).x;
+  stage.setPointerCapture(e.pointerId);
+});
 stage.addEventListener("pointerup", (e) => {
+  if (stage.hasPointerCapture?.(e.pointerId)) stage.releasePointerCapture(e.pointerId);
   if (dragFrom === null) return;
   const { x, r } = stageX(e);
   const a = Math.min(dragFrom, x), b = Math.max(dragFrom, x);
@@ -350,9 +424,9 @@ $("events").addEventListener("click", async (e) => {
     const input = document.querySelector(`input[data-note="${saveI}"]`);
     const text = input.value.trim(); if (!text) return;
     const p = app._events[Number(saveI)];
-    const r = await fetch("/api/notes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ epoch_ms: p.startMs, text }) });
-    const out = await r.json();
-    if (out.ok) { app.notes.push(out.note); renderEvents(); }
+    const saved = await source.saveNote({ epoch_ms: p.startMs, text });
+    if (saved) { app.notes.push(saved); renderEvents(); }
+    else input.placeholder = "Couldn't save that note in this browser.";
     return;
   }
   const exp = e.target.dataset.expand;
@@ -364,9 +438,8 @@ $("events").addEventListener("click", async (e) => {
   const tag = e.target.dataset.tag;
   if (tag) {
     const p = app._events[Number(e.target.dataset.ev)];
-    const r = await fetch("/api/activities", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ startMs: p.startMs, endMs: p.endMs, tag }) });
-    const out = await r.json();
-    if (out.ok) { app.activities.push(out.activity); renderEvents(); renderStage(); }
+    const saved = await source.saveActivity({ startMs: p.startMs, endMs: p.endMs, tag });
+    if (saved) { app.activities.push(saved); renderEvents(); renderStage(); }
   }
 });
 
@@ -385,7 +458,7 @@ $("btnMd").addEventListener("click", () => {
 });
 
 /* ---------------- guide ---------------- */
-fetch("/search-index.json").then((r) => r.json()).then((d) => {
+fetch("./search-index.json").then((r) => r.json()).then((d) => {
   app.index = buildIndex(d.chunks);
   $("starters").innerHTML = STARTER_QUESTIONS.map((q) => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("");
   $("starters").addEventListener("click", (e) => { if (e.target.dataset.q) { $("q").value = e.target.dataset.q; sendQ(); } });
@@ -413,19 +486,39 @@ function sendQ() {
   const q = $("q").value.trim();
   if (!q || !app.index) return;
   addMsg(q, [], { me: true }); $("q").value = "";
-  const res = ask(q, { index: app.index, analysis: app.view, shaping: app.engine.shaping, adaptive: true });
+  const res = ask(q, { index: app.index, analysis: app.view, shaping: app.engine.shaping, adaptive: source.live });
   addMsg(res.text, res.sources);
   $("lastRetrieval").textContent = JSON.stringify({ question: q, kind: res.kind, state: app.engine.state, sources: res.sources }, null, 2);
 }
 $("send").addEventListener("click", sendQ);
 $("q").addEventListener("keydown", (e) => { if (e.key === "Enter") sendQ(); });
 
+/* Legend swatches explain themselves too — they are the key to the whole ribbon. */
+function wireLegend() {
+  const map = { Focused: "st_focused", Settled: "st_settled", Steady: "st_steady",
+                Drifting: "st_drifting", "No reading": "st_none", "Recording stopped": "st_gap" };
+  document.querySelectorAll(".legend span").forEach((el) => {
+    const label = el.textContent.trim();
+    const key = map[label];
+    if (!key || el.querySelector("[data-ex]")) return;
+    const i = el.querySelector("i");
+    el.innerHTML = "";
+    if (i) el.appendChild(i);
+    el.insertAdjacentHTML("beforeend", ex(key, esc(label), { plain: true }));
+  });
+}
+
+/* ---------------- static mode ---------------- */
+function setUpStaticMode() {
+  document.body.dataset.static = "1";
+  const d = $("drop"); if (d) d.hidden = false;
+  const pl = $("privacyLine"); if (pl) pl.textContent = source.privacyNote;
+}
+
 /* ---------------- tier 3 live ---------------- */
 const BANDS = ["delta", "theta", "alpha", "beta", "gamma"];
 $("bandBars").innerHTML = BANDS.map(() => `<i style="height:2px"></i>`).join("");
-const es = new EventSource("/api/stream");
-es.onmessage = (e) => {
-  const f = JSON.parse(e.data);
+source.subscribeLive((f) => {
   $("mFocus").textContent = f.focus.toFixed(3);
   $("mCalm").textContent = f.calm.toFixed(3);
   $("bFocus").style.width = `${Math.min(100, f.focus * 100)}%`;
@@ -439,6 +532,6 @@ es.onmessage = (e) => {
   app.engine.push({ t: f.t, focus: f.focus, calm: f.calm, quality: f.signal_quality });
   $("stateText").textContent = app.engine.state;
   $("stateDump").textContent = JSON.stringify({ state: app.engine.state, candidate: app.engine.candidate, buffered: app.engine.buffer.length, shaping: app.engine.shaping }, null, 2);
-};
+});
 
 boot();

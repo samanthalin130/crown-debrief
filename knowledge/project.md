@@ -2,7 +2,7 @@
 
 ## In one paragraph
 
-Crown Debrief does two things with data from a Neurosity Crown EEG headset. It reads a recorded session and tells you what happened — when you peaked, when you crashed, how long your best stretch lasted. And it answers questions about the project and about your own numbers, for someone who has never encountered EEG before.
+Session Debrief does two things with data from a Neurosity Crown EEG headset. It reads a recorded session and tells you what happened — when you peaked, when you crashed, how long your best stretch lasted. And it answers questions about the project and about your own numbers, for someone who has never encountered EEG before.
 
 It is independent research using hardware loaned by the GFT Labs Digital Innovation Lab.
 

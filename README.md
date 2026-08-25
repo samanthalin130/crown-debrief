@@ -1,4 +1,4 @@
-# Crown Debrief
+# Session Debrief
 
 Reads a recorded session from a [Neurosity Crown](https://neurosity.co/) EEG headset and tells you what actually happened — when you peaked, when you crashed, how long your best stretch lasted — and answers questions about the data for someone who has never encountered EEG before.
 

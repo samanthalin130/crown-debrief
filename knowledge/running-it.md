@@ -1,4 +1,4 @@
-# Running Crown Debrief
+# Running Session Debrief
 
 ## The short version
 
@@ -31,18 +31,16 @@ Set these as environment variables when running the logger.
 
 For the dev panel, `PORT` changes the port (default 5273 — deliberately not 5173, which Vite and most front-end dev servers use) and `MISTRAL_API_KEY` enables the optional model-written answers.
 
-## The five tabs
+## The three screens
 
-**Live** shows the current stream — focus and calm against your baseline, band power, and per-electrode contact. It runs on a mock source unless a Crown is connected.
+**Today** answers "how did that go" in a sentence, followed by how it compares with your own normal, a suggestion, and a place to ask questions. Anything with a dashed underline explains itself when you tap it.
 
-**Sessions** lists every CSV in the data folder, with its length and how much of it survived the quality filter.
+**Session** shows the recording as a ribbon of named states over time, with a deviation strip and an activity lane below it sharing the same scale. Move the pointer across it for a readout; drag across it to select a window, which recomputes everything for that window.
 
-**Debrief** is the end-of-day report for whichever session is loaded.
+**How it works** is the guided version — where the data comes from, how to record a real session, how to read one, and what to do when something breaks.
 
-**Guide** answers questions about the project and your data, with sources.
-
-**Diagnostics** shows the raw incoming readings, which knowledge chunks matched a question and how strongly, and the current state engine settings.
+There is also a quiet **Detail view** link for the live stream, band power, electrode contact and the internals. It is for building and debugging, not for reading a session — watching a live focus score while you work reliably lowers it.
 
 ## If something looks wrong
 
-Run `npm test`. Thirty-seven checks cover the parsing, the quality gate, the statistics, and the state engine. If those pass and the numbers still look strange, the problem is more likely the headset fit than the code — check coverage on the Debrief tab first.
+Run `npm test`. Seventy-five checks cover the parsing, the quality gate, the statistics, the cross-session baseline, the fixed vocabulary and the state engine. If those pass and the numbers still look strange, the problem is more likely the headset fit than the code — check coverage on the Debrief tab first.

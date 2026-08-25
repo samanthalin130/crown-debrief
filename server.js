@@ -238,7 +238,7 @@ server.on("error", (err) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  Crown Debrief — dev panel`);
+  console.log(`\n  Session Debrief — dev panel`);
   console.log(`  http://localhost:${PORT}`);
   console.log(sessionCount ? `  ${sessionCount} session${sessionCount === 1 ? "" : "s"} in data/\n` : `  No sessions yet — run:  npm run sample\n`);
 });

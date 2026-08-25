@@ -1,4 +1,4 @@
-# Handoff notes — GFT Labs Digital Innovation Lab
+# Session Debrief — handoff notes — GFT Labs Digital Innovation Lab
 
 Written for someone picking this up cold, with no background in EEG and no prior contact with the project.
 

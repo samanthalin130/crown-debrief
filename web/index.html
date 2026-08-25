@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Crown Debrief</title>
+<title>Session Debrief</title>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Crown Debrief</h1>
-    <select class="sess" id="sessPick" aria-label="Choose a session"></select>
+    <h1>Session Debrief</h1>
+    <select class="sess" id="sessPick" aria-label="Choose which recording to look at"></select>
     <span class="chip synth" id="synthChip" hidden>synthetic sample data</span>
     <span class="spacer"></span>
     <a class="quiet" href="#" id="detailLink">Detail view</a>
+    <p class="subtitle">Reads a recording from a Neurosity Crown brain-sensing headset and tells you how the session went. Anything underlined can be tapped for what it means.</p>
   </header>
 
   <nav role="tablist">
@@ -26,16 +27,15 @@
   <main>
     <!-- ============ TIER 1 ============ -->
     <section class="panel on" id="p-today">
+      <div id="firstRun"></div>
       <div class="card">
-        <div class="hero">
-          <div>
-            <div class="num" id="heroNum">—</div>
-            <div class="lab" id="heroLab">Deep work</div>
-            <div id="heroDelta"></div>
-          </div>
+        <p class="lede-line" id="ledeLine">Loading your last session…</p>
+        <div class="exp" id="ledeExp" hidden></div>
+        <div class="hero" id="heroRow">
           <div class="say">
-            <p class="v" id="heroVerdict">Loading your last session…</p>
+            <p class="v" id="heroVerdict"></p>
             <p id="heroDetail"></p>
+            <div id="heroDelta"></div>
           </div>
         </div>
         <div id="learning"></div>
@@ -105,7 +105,7 @@
         <h2>Where the data comes from</h2>
         <p class="ht-lede">The headset never talks to this laptop directly. It has wifi in it, and it sends what it reads to Neurosity's servers. Anything that wants that data — their console, their phone app, this project — signs in to that cloud and asks for it.</p>
         <div class="flowbox">
-          <svg viewBox="0 0 880 220" role="img" aria-label="The Crown sends readings over wifi to Neurosity's cloud. logger.js signs in to that cloud and writes a CSV file. Crown Debrief reads the CSV file." class="flowsvg">
+          <svg viewBox="0 0 880 220" role="img" aria-label="The Crown sends readings over wifi to Neurosity's cloud. logger.js signs in to that cloud and writes a CSV file. Session Debrief reads the CSV file." class="flowsvg">
             <defs>
               <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
                 <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/>
@@ -137,7 +137,7 @@
 
               <path d="M745 132 L745 168 L438 168" fill="none" stroke="var(--ink-3)" stroke-width="1.5" marker-end="url(#ar)"/>
               <rect x="270" y="150" width="162" height="40" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
-              <text x="351" y="175" text-anchor="middle" font-size="13.5" font-weight="600" fill="var(--ink)">Crown Debrief</text>
+              <text x="351" y="175" text-anchor="middle" font-size="13.5" font-weight="600" fill="var(--ink)">Session Debrief</text>
 
               <text x="524" y="34" text-anchor="middle" font-size="11" fill="var(--ink-3)">the only file that knows Neurosity exists</text>
               <line x1="524" y1="40" x2="524" y2="50" stroke="var(--line)" stroke-width="1"/>
