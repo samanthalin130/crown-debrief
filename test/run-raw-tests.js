@@ -354,9 +354,18 @@ console.log("\nagainst a real Crown recording");
   const med = join(ROOT, "test/fixtures/real-meditation-5min.csv");
   const why = "test/fixtures/real-meditation-5min.csv is not present. Real recordings are kept out of version control; see the README.";
 
+  // Every check in this group is named here, so the count of skips matches the
+  // count of checks that would have run. A test that silently disappears when a
+  // file is missing is worse than one that fails.
+  const REAL_CHECKS = [
+    "parses the recording to the metadata the console reported",
+    "reproduces the console's own signal-quality figures",
+    "reaches the published reading of the meditation session",
+    "puts the loud channels in the range the console showed",
+  ];
+
   if (!existsSync(med)) {
-    skipped("reproduces the console's own signal-quality figures", why);
-    skipped("reaches the published reading of the meditation session", why);
+    REAL_CHECKS.forEach((name) => skipped(name, why));
   } else {
     const expected = JSON.parse(readFileSync(join(ROOT, "test/expected/console-signal-quality.json"), "utf8"));
     const shape = JSON.parse(readFileSync(join(ROOT, "test/expected/meditation-shape.json"), "utf8"));
