@@ -183,7 +183,9 @@ None of the following can be done without hardware, and none of it has been done
 ## How it is put together
 
 ```
-collector/logger.js   records the focus logger CSV (unchanged from crown-focus-logger)
+collector/logger.js   records the focus logger CSV (vendored from crown-focus-logger,
+                      with its imports changed for this repo: see the note at the top of
+                      the file. The CSV schema it writes is identical.)
 
 core/                 all the real logic, as plain modules that run in Node and a browser
   raw-csv.js          the console's eleven-column export, and its quirks

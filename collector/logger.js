@@ -72,7 +72,7 @@ if (DURATION_SEC > 0) {
 
 // ---------------- MOCK MODE ----------------
 function runMock() {
-  console.log(`Crown Focus Logger — MOCK mode (interval ${LOG_INTERVAL_MS}ms)`);
+  console.log(`Crown Focus Logger, MOCK mode (interval ${LOG_INTERVAL_MS}ms)`);
 
   // Smooth drifting focus/calm via low-pass filtered random walks.
   let focus = 0.5;
@@ -131,7 +131,7 @@ async function runLive() {
   }
 
   const neurosity = new Neurosity(deviceId ? { deviceId } : {});
-  console.log("Crown Focus Logger — LIVE mode: logging in...");
+  console.log("Crown Focus Logger, LIVE mode: logging in...");
   await neurosity.login({ email, password });
   console.log("Logged in. Subscribing to streams...");
 

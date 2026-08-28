@@ -16,10 +16,10 @@ export function parseCsv(text) {
 
   const header = splitLine(lines[0]).map((h) => h.trim());
   if (!header.includes("focus")) {
-    return { rows: [], warnings: ["This doesn't look like a Crown log — no 'focus' column found."] };
+    return { rows: [], warnings: ["This doesn't look like a Crown log: no 'focus' column found."] };
   }
   if (!header.includes("person_id")) {
-    warnings.push("No person_id column — treating the whole file as one person ('me').");
+    warnings.push("No person_id column, treating the whole file as one person ('me').");
   }
 
   const rows = [];
