@@ -1,5 +1,10 @@
-const fs = require("fs");
-const path = require("path");
+// Vendored from crown-focus-logger, with one change: this repo is "type": "module",
+// so the upstream file's top-level CommonJS loads cannot run here. They are ESM
+// imports below, and the optional SDK is loaded with await import() in runLive(),
+// which is the same fix upstream uses for its own reasons.
+
+import fs from "node:fs";
+import path from "node:path";
 
 const MODE = (process.env.MODE || "mock").toLowerCase();
 const LOG_INTERVAL_MS = parseInt(process.env.LOG_INTERVAL_MS || "2000", 10);
@@ -107,8 +112,14 @@ function runMock() {
 
 // ---------------- LIVE MODE ----------------
 async function runLive() {
-  require("dotenv").config();
-  const { Neurosity } = require("@neurosity/sdk");
+  // @neurosity/sdk 7.x ships "type": "module" with a CommonJS entry point, so a
+  // synchronous load of it throws "exports is not defined in ES module scope".
+  // Dynamic import loads the ESM build and works either way. Both of these are
+  // optionalDependencies, so they load here rather than at the top: mock mode
+  // has to keep working with nothing installed.
+  const dotenv = await import("dotenv");
+  (dotenv.default ?? dotenv).config();
+  const { Neurosity } = await import("@neurosity/sdk");
 
   const email = process.env.NEUROSITY_EMAIL;
   const password = process.env.NEUROSITY_PASSWORD;
