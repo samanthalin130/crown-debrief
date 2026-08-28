@@ -1,0 +1,26 @@
+{
+  "_what": "Signal quality figures the Neurosity console itself reported for the meditation recording, used to check this project's parser and filter against the real device.",
+  "_source": "Published in 'The Neurosity Console, Decoded', worked session section, where they were read off the console's Signal Quality tab.",
+  "_method": "Standard deviation per channel in microvolts, measured after a 1 Hz high-pass. A raw standard deviation does not match the console; removing slow drift first does.",
+  "_why_committed": "These are five derived numbers that are already public. The recording they come from is not committed.",
+  "_recording": {
+    "file": "test/fixtures/real-meditation-5min.csv",
+    "originalName": "Meditation - Focus --_ Calm.csv",
+    "samples": 76832,
+    "channels": 8,
+    "sampleRate": 256,
+    "durationSec": 300.125
+  },
+  "_tolerance": {
+    "relativePercent": 1.0,
+    "absoluteMicrovolts": 15,
+    "_note": "A channel passes on either. Percentage is the meaningful test on the loud channels; on the two quiet ones a few microvolts is a large percentage but a small disagreement, and the exact high-pass design accounts for it."
+  },
+  "console": {
+    "C3": 4063,
+    "F6": 4014,
+    "C4": 4793,
+    "PO3": 231,
+    "PO4": 129
+  }
+}

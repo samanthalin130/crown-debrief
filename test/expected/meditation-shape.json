@@ -1,0 +1,13 @@
+{
+  "_what": "The shape of the meditation session, as published, used to check that this project's band-power pipeline reaches the same reading of the same recording.",
+  "_source": "Published in the case study 'Session 01: the meditation that peaked at minute three'.",
+  "_why_shape_not_values": "Exact band-share percentages move substantially with preprocessing choices (whether slow drift is removed first, and whether a window's share is power-weighted or averaged across epochs). The direction and the timing of a change survive all of those choices; the decimals do not. So the test asserts the shape, which is what the published claim actually rests on.",
+  "claims": {
+    "posteriorAlphaPeaksMidway": true,
+    "posteriorAlphaPeakWindow": 3,
+    "posteriorAlphaRisesFromFirstWindow": true,
+    "usableChannels": ["PO3", "PO4"],
+    "artifactChannelCount": 6,
+    "artifactMicrovoltRange": [2200, 4800]
+  }
+}

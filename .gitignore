@@ -4,3 +4,9 @@ data/*.csv
 notes/*.jsonl
 web/search-index.json
 .DS_Store
+
+# Real Crown recordings. These are Samantha's own EEG and are deliberately kept
+# out of version control. Tests that need them skip cleanly when they are absent;
+# the expected values they check against live in test/expected/ and are committed,
+# because those are already published figures rather than raw brain data.
+test/fixtures/*.csv

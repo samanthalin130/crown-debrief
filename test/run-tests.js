@@ -207,7 +207,15 @@ console.log("\nbaseline store");
   t("learns hour-of-day norms", () => ok(Object.keys(store.byHour).length >= 5));
   t("afternoon norm is lower than late morning", () => {
     const am = store.byHour[10]?.mean, pm = store.byHour[14]?.mean;
-    ok(am && pm && am > pm, `10:00 ${am} vs 14:00 ${pm} — this is why hour-of-day baselining matters`);
+    // Hour buckets are local hours. The sample generator also writes in local
+    // hours, so the two agree only while the fixtures were generated in the
+    // timezone the tests are running in. If they were not, this assertion fails
+    // for a reason that has nothing to do with the statistics, so say so.
+    ok(am && pm && am > pm,
+      `10:00 ${am} vs 14:00 ${pm}. This is why hour-of-day baselining matters. `
+      + `If this failed after the fixtures were generated elsewhere, they are in a `
+      + `different timezone from this run (currently ${Intl.DateTimeFormat().resolvedOptions().timeZone}): `
+      + `run "npm run sample" to regenerate them locally.`);
   });
   t("z-score of the mean is zero", () => {
     const z = zFor(store, "deepWorkMs", store.metrics.deepWorkMs.mean);
