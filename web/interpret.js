@@ -303,87 +303,104 @@ function summaryText(r, meta) {
   return L.join("\n");
 }
 
-/* ---------------- wiring ---------------- */
-const drop = $("drop"), out = $("out"), err = $("err"), busy = $("busy");
+/* ---------------- wiring ----------------
+   Wrapped in an init rather than run at module scope, because the site this is
+   built for runs Astro's ClientRouter: the page can be mounted again after a
+   client-side navigation, and must not double-bind when it is. Standalone, the
+   astro:page-load event simply never fires and this runs once. */
 
-function fail(msg) {
-  err.textContent = msg;
-  err.hidden = false;
-  busy.hidden = true;
-}
-function reset() {
-  out.hidden = true; out.innerHTML = "";
-  drop.hidden = false; err.hidden = true;
-  $("exall").disabled = true; $("another").hidden = true;
-}
+function initInterpreter() {
+  const root = document.querySelector(".cd");
+  if (!root || root.dataset.wired === "1") return;
+  const drop = $("drop"), out = $("out"), err = $("err"), busy = $("busy");
+  if (!drop || !out) return;          // not the interpreter page
+  root.dataset.wired = "1";
 
-async function handle(file) {
-  err.hidden = true;
-  if (!file) return;
-  if (file.size > 300 * 1024 * 1024) return fail("That file is over 300 MB, which is larger than this page can read in one go.");
-
-  drop.hidden = true;
-  busy.hidden = false;
-  busy.textContent = `Reading ${file.name}…`;
-  // Yield once so the browser paints the busy state before the work starts.
-  await new Promise((r) => setTimeout(r, 30));
-
-  let text;
-  try { text = await file.text(); }
-  catch { drop.hidden = false; return fail("That file could not be opened."); }
-
-  if (!looksLikeRawExport(text)) {
-    drop.hidden = false;
-    return fail("That does not look like a Neurosity console CSV export. A console export has eleven comma-separated columns and no header row. A focus-logger CSV, which has a 'focus' column, is a different format and is read by the session debrief instead.");
-  }
-
-  try {
-    const parsed = parseRawCsv(text);
-    if (!parsed.ok) {
-      drop.hidden = false;
-      return fail(parsed.warnings?.[0] || "That recording could not be read.");
-    }
-    // Below about 90 seconds there are too few minutes to say anything about change.
-    const windowSec = parsed.durationSec < 90 ? Math.max(10, Math.round(parsed.durationSec / 5 / 5) * 5) : 60;
-    const analysis = analyseRecording(parsed, { windowSec });
-    const r = interpret(analysis);
-    const meta = { name: file.name, samples: parsed.n, durationSec: parsed.durationSec, sampleRate: parsed.sampleRate, warnings: parsed.warnings };
-
+  function fail(msg) {
+    err.textContent = msg;
+    err.hidden = false;
     busy.hidden = true;
-    out.innerHTML = render(r, meta);
-    out.hidden = false;
-    wireExplainers(out);
-    $("exall").disabled = false;
-    $("another").hidden = false;
-    $("again")?.addEventListener("click", reset);
-    $("copy")?.addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(summaryText(r, meta)); $("copy").textContent = "Copied"; }
-      catch { $("copy").textContent = "Could not copy"; }
-      setTimeout(() => { $("copy").textContent = "Copy summary"; }, 1600);
-    });
-    console.log("[Interpreter] read", file.name, analysis);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  } catch (e) {
-    drop.hidden = false;
-    fail(`That recording could not be read: ${e.message}`);
-    console.error("[Interpreter]", e);
   }
+  function reset() {
+    out.hidden = true; out.innerHTML = "";
+    drop.hidden = false; err.hidden = true;
+    $("exall").disabled = true; $("exall").textContent = "Expand all";
+    $("another").hidden = true;
+  }
+
+  async function handle(file) {
+    err.hidden = true;
+    if (!file) return;
+    if (file.size > 300 * 1024 * 1024) return fail("That file is over 300 MB, which is larger than this page can read in one go.");
+
+    drop.hidden = true;
+    busy.hidden = false;
+    busy.textContent = `Reading ${file.name}\u2026`;
+    // Yield once so the browser paints the busy state before the work starts.
+    await new Promise((r) => setTimeout(r, 30));
+
+    let text;
+    try { text = await file.text(); }
+    catch { drop.hidden = false; return fail("That file could not be opened."); }
+
+    if (!looksLikeRawExport(text)) {
+      drop.hidden = false;
+      return fail("That does not look like a Neurosity console CSV export. A console export has eleven comma-separated columns and no header row. A focus-logger CSV, which has a 'focus' column, is a different format and is read by the session debrief instead.");
+    }
+
+    try {
+      const parsed = parseRawCsv(text);
+      if (!parsed.ok) {
+        drop.hidden = false;
+        return fail(parsed.warnings?.[0] || "That recording could not be read.");
+      }
+      // Below about 90 seconds there are too few minutes to say anything about
+      // change, so the recording is cut into shorter windows instead. They are
+      // named for their real length rather than called minutes.
+      const windowSec = parsed.durationSec < 90 ? Math.max(10, Math.round(parsed.durationSec / 5 / 5) * 5) : 60;
+      const analysis = analyseRecording(parsed, { windowSec });
+      const r = interpret(analysis);
+      const meta = { name: file.name, samples: parsed.n, durationSec: parsed.durationSec, sampleRate: parsed.sampleRate, warnings: parsed.warnings };
+
+      busy.hidden = true;
+      out.innerHTML = render(r, meta);
+      out.hidden = false;
+      wireExplainers(out);
+      $("exall").disabled = false;
+      $("another").hidden = false;
+      $("again")?.addEventListener("click", reset);
+      $("copy")?.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(summaryText(r, meta)); $("copy").textContent = "Copied"; }
+        catch { $("copy").textContent = "Could not copy"; }
+        setTimeout(() => { $("copy").textContent = "Copy summary"; }, 1600);
+      });
+      console.log("[Interpreter] read", file.name, analysis);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      drop.hidden = false;
+      fail(`That recording could not be read: ${e.message}`);
+      console.error("[Interpreter]", e);
+    }
+  }
+
+  $("pick").addEventListener("click", () => $("file").click());
+  $("file").addEventListener("change", (e) => handle(e.target.files[0]));
+  $("another").addEventListener("click", reset);
+  $("exall").addEventListener("click", () => {
+    const rows = [...out.querySelectorAll("details.row")];
+    const open = rows.some((r) => !r.open);
+    rows.forEach((r) => { r.open = open; });
+    $("exall").textContent = open ? "Collapse all" : "Expand all";
+  });
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => handle(e.dataTransfer?.files?.[0]));
+  // A drop anywhere else on the page would otherwise navigate away from it.
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => e.preventDefault());
+
+  console.log("[Interpreter] ready. Drop a Neurosity console CSV export. Everything runs in this browser.");
 }
 
-$("pick").addEventListener("click", () => $("file").click());
-$("file").addEventListener("change", (e) => handle(e.target.files[0]));
-$("another").addEventListener("click", reset);
-$("exall").addEventListener("click", () => {
-  const rows = [...out.querySelectorAll("details.row")];
-  const open = rows.some((r) => !r.open);
-  rows.forEach((r) => { r.open = open; });
-  $("exall").textContent = open ? "Collapse all" : "Expand all";
-});
-["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (e) => handle(e.dataTransfer?.files?.[0]));
-// A drop anywhere else on the page would otherwise navigate away from it.
-window.addEventListener("dragover", (e) => e.preventDefault());
-window.addEventListener("drop", (e) => e.preventDefault());
-
-console.log("[Interpreter] ready. Drop a Neurosity console CSV export. Everything runs in this browser.");
+initInterpreter();
+document.addEventListener("astro:page-load", initInterpreter);

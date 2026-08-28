@@ -1,4 +1,4 @@
-# Session Debrief — handoff notes — GFT Labs Digital Innovation Lab
+# Session Debrief - handoff notes - GFT Labs Digital Innovation Lab
 
 Written for someone picking this up cold, with no background in EEG and no prior contact with the project.
 
@@ -6,7 +6,7 @@ Written for someone picking this up cold, with no background in EEG and no prior
 
 ## 1. What this is, in one paragraph
 
-A Neurosity Crown is an eight-electrode EEG headset. A small Node tool records what it streams — two ready-made scores called focus and calm, plus power in five frequency bands — into a CSV every two seconds. This project reads those CSVs and does two things: it writes a plain-English report on a session, and it answers questions about the data and the project. Nothing here requires the headset to be present: a mock mode generates realistic data so the whole system can be run, tested, and demonstrated with no hardware.
+A Neurosity Crown is an eight-electrode EEG headset. A small Node tool records what it streams - two ready-made scores called focus and calm, plus power in five frequency bands - into a CSV every two seconds. This project reads those CSVs and does two things: it writes a plain-English report on a session, and it answers questions about the data and the project. Nothing here requires the headset to be present: a mock mode generates realistic data so the whole system can be run, tested, and demonstrated with no hardware.
 
 ## 2. Running it
 
@@ -21,7 +21,7 @@ If you want to record from a real Crown, `npm install` pulls the Neurosity SDK a
 
 The Crown was uncharged and offline during the build, so the entire system was written against generated data. That constraint turned out to be worth keeping.
 
-`scripts/make-sample-data.js` produces a week of sessions. It is not random noise. Focus follows the shape of a working day — a rise through the morning, a late-morning peak, a post-lunch dip, a partial afternoon recovery, an evening fade — with mean-reverting drift on top, so attention wanders the way attention does rather than teleporting between readings. Band power is derived to be internally consistent with the metrics: gamma tracks focus and alpha tracks calm, because that is how Neurosity computes them, and overall magnitude falls off with frequency so delta is largest. Occasional windows are marked as poor signal, so the quality filter has something to filter.
+`scripts/make-sample-data.js` produces a week of sessions. It is not random noise. Focus follows the shape of a working day - a rise through the morning, a late-morning peak, a post-lunch dip, a partial afternoon recovery, an evening fade - with mean-reverting drift on top, so attention wanders the way attention does rather than teleporting between readings. Band power is derived to be internally consistent with the metrics: gamma tracks focus and alpha tracks calm, because that is how Neurosity computes them, and overall magnitude falls off with frequency so delta is largest. Occasional windows are marked as poor signal, so the quality filter has something to filter.
 
 The generator is seeded, so the same week comes out every run and a bug is always reproducible.
 
@@ -31,7 +31,7 @@ The value beyond convenience: the project can be cloned and run by anyone, tests
 
 ## 4. What the numbers mean
 
-Read `knowledge/eeg-primer.md` first — it is written for exactly this audience and takes about five minutes.
+Read `knowledge/eeg-primer.md` first - it is written for exactly this audience and takes about five minutes.
 
 The two things that catch everyone out:
 
@@ -45,11 +45,11 @@ Third, less obvious: **a poor signal produces confident-looking numbers.** An el
 
 Two reasons, and the second matters more.
 
-A public site cannot ship an API key — anyone can read it. And a research tool that stops working when a paid service is down or a free tier is exhausted is fragile in a lab.
+A public site cannot ship an API key - anyone can read it. And a research tool that stops working when a paid service is down or a free tier is exhausted is fragile in a lab.
 
 So the debrief is computed and then written from sentence templates driven by those computations. The useful side effect is auditability: every claim traces back to a number in the CSV, and you can check any of them. That is a stronger position for research than "the model said so".
 
-Where a model genuinely helps — rewriting the report in more natural prose, answering open-ended questions — the integration is optional, local-only, and receives the computed summary rather than raw EEG. One function builds that summary and it is the only path from recorded data to any external service.
+Where a model genuinely helps - rewriting the report in more natural prose, answering open-ended questions - the integration is optional, local-only, and receives the computed summary rather than raw EEG. One function builds that summary and it is the only path from recorded data to any external service.
 
 ## 6. Rules the code follows
 
@@ -63,33 +63,35 @@ These are constraints, not preferences, and they should survive future changes.
 
 **The guide cites everything, and refuses rather than guesses.** If retrieval finds nothing, the answer says so. There is a test asserting this.
 
-**No credentials in browsers.** There is no bring-your-own-key input and there should never be one — beyond the technical exposure, it trains people to paste credentials into web pages.
+**No credentials in browsers.** There is no bring-your-own-key input and there should never be one - beyond the technical exposure, it trains people to paste credentials into web pages.
 
 ## 7. Publishing it without a server
 
 The intended handoff is a static site: the same `core/` modules, published as files, with no backend. A visitor drops in a CSV, it is read inside their own browser, and the full debrief renders. Nothing uploads. The guide answers from a search index built at publish time by `scripts/build-index.js`, so no server is needed for that either.
 
-This works because every module in `core/` runs unmodified in both Node and a browser. Turning the dev panel into the static site is a matter of a different entry point, not a rewrite. It is not built yet; it is the next task.
+This works because every module in `core/` runs unmodified in both Node and a browser. Turning the dev panel into the static site is a matter of a different entry point, not a rewrite.
+
+**This is now built, for the interpreter.** `npm run build` writes `dist/`, eight files with no backend behind them, and it was checked by serving that folder from a plain static file server and reading a real recording through it. The debrief's three screens still want the dev server, because they read a folder of sessions rather than one dropped file; `web/data-source.static.js` is the swap that would remove that too, and it is written but not yet wired to an entry point.
 
 If the lab later wants model-written answers on the open web, the correct shape is a small service the lab owns, holding a key the lab controls and pays for. That is deliberately not built here.
 
-## 8. Where this could go — and how far it actually is
+## 8. Where this could go - and how far it actually is
 
 The stated long-term ambition is thinking a thought to move a robotic arm. It is worth being precise about the distance.
 
-Focus and calm are **state** signals: how you are. Motor imagery — imagining a movement — is an **intent** signal: what you want. The second cannot be derived from the first. They are different phenomena and no amount of focus logging produces an arm command.
+Focus and calm are **state** signals: how you are. Motor imagery - imagining a movement - is an **intent** signal: what you want. The second cannot be derived from the first. They are different phenomena and no amount of focus logging produces an arm command.
 
-What is genuinely promising is the hardware. Imagining a left- or right-hand movement suppresses rhythms over the opposite sensorimotor cortex, and the Crown's C3 and C4 electrodes sit exactly there — the standard montage for this work. What's missing is not sensors but **labelled data**: many trials of cue, imagine, rest, each tagged with what was imagined.
+What is genuinely promising is the hardware. Imagining a left- or right-hand movement suppresses rhythms over the opposite sensorimotor cortex, and the Crown's C3 and C4 electrodes sit exactly there - the standard montage for this work. What's missing is not sensors but **labelled data**: many trials of cue, imagine, rest, each tagged with what was imagined.
 
-This project does not build that. What it does build is the recording discipline it would need — consistent timestamped files, a quality gate applied before anything is trusted, a person identifier, and a notes format that attaches meaning to a moment in time. The session notes feature is the same primitive a training pipeline would use, arrived at from the useful end rather than the theoretical one.
+This project does not build that. What it does build is the recording discipline it would need - consistent timestamped files, a quality gate applied before anything is trusted, a person identifier, and a notes format that attaches meaning to a moment in time. The session notes feature is the same primitive a training pipeline would use, arrived at from the useful end rather than the theoretical one.
 
-A realistic sequence from here: extend the collector to run cue-based trials, collect labelled motor-imagery data from one person, train and honestly evaluate a two-class classifier, and only then consider actuation — with a hardware kill switch, a confidence floor, a dwell requirement, and a rule that unreadable signal means stop rather than repeat the last command.
+A realistic sequence from here: extend the collector to run cue-based trials, collect labelled motor-imagery data from one person, train and honestly evaluate a two-class classifier, and only then consider actuation - with a hardware kill switch, a confidence floor, a dwell requirement, and a rule that unreadable signal means stop rather than repeat the last command.
 
 ## 8b. How to read the interface
 
-**Today** answers "how did that go" with one figure: deep work, the time spent meaningfully above that person's own normal. It is expressed in minutes rather than as a score on purpose — minutes are a unit people already understand, they cannot be misread as a percentage, and counting them does not grade anyone's brain.
+**Today** answers "how did that go" with one figure: deep work, the time spent meaningfully above that person's own normal. It is expressed in minutes rather than as a score on purpose - minutes are a unit people already understand, they cannot be misread as a percentage, and counting them does not grade anyone's brain.
 
-**Session** shows the recording as a ribbon of named states rather than as line charts. Four states carry colour — focused, settled, steady, drifting — and two conditions deliberately do not: poor signal is drawn as a hatch and a break in recording as a faint gap. Absence must never look like a state, which is the one rule that palette exists to enforce.
+**Session** shows the recording as a ribbon of named states rather than as line charts. Four states carry colour - focused, settled, steady, drifting - and two conditions deliberately do not: poor signal is drawn as a hatch and a break in recording as a faint gap. Absence must never look like a state, which is the one rule that palette exists to enforce.
 
 **Detail** holds everything an engineer might want and a user should not be shown first.
 
@@ -99,10 +101,13 @@ A realistic sequence from here: extend the collector to run cue-based trials, co
 - Personal baselines are computed per session. Cross-session baselines are more meaningful and are not implemented.
 - `hour of day` analysis is reported from a single session, which is not enough to be a pattern. The interface says so.
 - Retrieval is keyword-based. It handles the questions in the test suite well and will miss paraphrases that share no vocabulary with the notes.
-- The static site is designed for but not built.
+- The static site is built for the interpreter and not for the debrief. See section 7.
 - The baseline uses the ten most recent sessions with no seasonal or day-of-week weighting beyond the phrase in the delta chip.
 - Activity tags are applied per event, not by dragging a range on the ribbon.
-- No data from a real headset has passed through this system yet. Every number seen so far is synthetic.
+- **No live headset has ever been connected to this.** The collector's live mode is written and has not been run against a Crown.
+- Real recorded data *has* now passed through the interpreter: three CSVs exported from the Neurosity console, and the pipeline reproduces the console's own per-channel signal-quality figures to within 0.1 per cent on the loud channels. That verifies the parse, the filter and the statistics. It does not verify that any recording measured what it was named for, which needs a protocol and a headset.
+- The debrief's numbers are still entirely synthetic. It has never been run on real data, because the focus logger it reads from has never recorded a real session.
+- The interpreter reports calm and focus *indicators*, computed from band power. They are not Neurosity's focus and calm scores, which run on the headset and are not written into an export.
 
 ## 10. Where to look first
 

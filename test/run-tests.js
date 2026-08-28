@@ -19,7 +19,7 @@ const eq = (a, b, m = "") => { if (a !== b) throw new Error(`${m} expected ${b},
 const ok = (c, m) => { if (!c) throw new Error(m || "expected truthy"); };
 
 const files = readdirSync(join(ROOT, "data")).filter((f) => f.endsWith(".csv"));
-ok(files.length > 0, "no sample data — run `npm run sample` first");
+ok(files.length > 0, "no sample data - run `npm run sample` first");
 const { rows } = parseCsv(readFileSync(join(ROOT, "data", files[0]), "utf8"));
 
 console.log("\ncsv");
@@ -74,7 +74,7 @@ t("peaks and slumps sit inside the session", () => {
 });
 t("recorded time never exceeds wall-clock time", () => ok(a.recordedMs <= a.wallMs));
 t("synthetic data is flagged as synthetic", () => eq(a.synthetic, true));
-t("is deterministic — same input, same peaks", () => {
+t("is deterministic - same input, same peaks", () => {
   const b = analyse(rows);
   eq(JSON.stringify(b.peaks), JSON.stringify(a.peaks));
 });
@@ -89,7 +89,7 @@ t("suggestion exists and is behavioural", () => { const s = suggestion(a); ok(s 
 t("markdown export has no NaN", () => { const m = toMarkdown(a, []); ok(!/NaN|undefined/.test(m)); ok(m.includes("# Debrief")); });
 t("clipboard summary carries no raw EEG rows", () => {
   const c = toClipboardSummary(a, []);
-  ok(c.length < 2000, `summary too big (${c.length}) — that would mean raw data leaked in`);
+  ok(c.length < 2000, `summary too big (${c.length}) - that would mean raw data leaked in`);
   ok(c.includes("Focus"));
 });
 t("a bad-signal session is told to fix the fit first", () => {
