@@ -13,7 +13,7 @@ A Neurosity Crown is an eight-electrode EEG headset. A small Node tool records w
     npm run sample
     npm start
 
-That's the whole thing. No dependency installation, no API key, no account, no network. Node is the only requirement. `npm test` runs 75 checks.
+That's the whole thing. No dependency installation, no API key, no account, no network. Node is the only requirement. `npm test` runs 116 checks across two suites.
 
 If you want to record from a real Crown, `npm install` pulls the Neurosity SDK and `npm run log:live` records against credentials in `.env`.
 
@@ -45,7 +45,7 @@ Third, less obvious: **a poor signal produces confident-looking numbers.** An el
 
 Two reasons, and the second matters more.
 
-A public site cannot ship an API key - anyone can read it. And a research tool that stops working when a paid service is down or a free tier is exhausted is fragile in a lab.
+A public site cannot ship an API key - anyone can read it. And a research tool that stops working when an external service is down or a free tier is exhausted is fragile in a lab.
 
 So the debrief is computed and then written from sentence templates driven by those computations. The useful side effect is auditability: every claim traces back to a number in the CSV, and you can check any of them. That is a stronger position for research than "the model said so".
 

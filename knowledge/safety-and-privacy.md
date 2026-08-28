@@ -16,9 +16,9 @@ There is no "paste your own API key" box, and there should never be one. A key t
 
 If model-written answers are ever wanted on the open web, the right shape is a small service that the lab owns, holding a key the lab controls.
 
-## What the model is allowed to see
+## Nothing is sent anywhere
 
-When the optional Mistral integration is switched on locally, it receives the computed summary — medians, ranges, peak times, band averages — and never raw EEG readings. One function builds that summary and it is the only path from your data to any external service.
+There is no model in this system and no external service to send anything to. Every sentence in the debrief is assembled from a computed number, and the guide answers by retrieving a passage from these notes. Your data stays on your own machine because there is nowhere for it to go.
 
 ## Adaptation changes shape, never substance
 

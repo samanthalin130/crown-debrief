@@ -24,12 +24,12 @@ Live mode also needs the Neurosity SDK, which is the only real dependency in the
 
 Set these as environment variables when running the logger.
 
-- `MODE` — `mock` or `live`. Defaults to `mock`.
-- `LOG_INTERVAL_MS` — how often a row is written. Defaults to 2000.
-- `OUT_FILE` — where to write. Defaults to `focus-log.csv`.
-- `DURATION_SEC` — stop automatically after this many seconds. Defaults to 0, meaning run until you press Ctrl+C.
+- `MODE`: `mock` or `live`. Defaults to `mock`.
+- `LOG_INTERVAL_MS`: how often a row is written. Defaults to 2000.
+- `OUT_FILE`: where to write. Defaults to `focus-log.csv`.
+- `DURATION_SEC`: stop automatically after this many seconds. Defaults to 0, meaning run until you press Ctrl+C.
 
-For the dev panel, `PORT` changes the port (default 5273 — deliberately not 5173, which Vite and most front-end dev servers use) and `MISTRAL_API_KEY` enables the optional model-written answers.
+For the dev panel, `PORT` changes the port. It defaults to 5273, deliberately not 5173, which Vite and most front-end dev servers use.
 
 ## The three screens
 
@@ -37,10 +37,10 @@ For the dev panel, `PORT` changes the port (default 5273 — deliberately not 51
 
 **Session** shows the recording as a ribbon of named states over time, with a deviation strip and an activity lane below it sharing the same scale. Move the pointer across it for a readout; drag across it to select a window, which recomputes everything for that window.
 
-**How it works** is the guided version — where the data comes from, how to record a real session, how to read one, and what to do when something breaks.
+**How it works** is the guided version, where the data comes from, how to record a real session, how to read one, and what to do when something breaks.
 
-There is also a quiet **Detail view** link for the live stream, band power, electrode contact and the internals. It is for building and debugging, not for reading a session — watching a live focus score while you work reliably lowers it.
+There is also a quiet **Detail view** link for the live stream, band power, electrode contact and the internals. It is for building and debugging, not for reading a session, watching a live focus score while you work reliably lowers it.
 
 ## If something looks wrong
 
-Run `npm test`. Seventy-five checks cover the parsing, the quality gate, the statistics, the cross-session baseline, the fixed vocabulary and the state engine. If those pass and the numbers still look strange, the problem is more likely the headset fit than the code — check coverage on the Debrief tab first.
+Run `npm test`. It runs 116 checks across two suites: 75 cover the parsing, the quality gate, the statistics, the cross-session baseline, the fixed vocabulary and the state engine, and 41 more run the interpreter against a real Crown recording and check that it reproduces the console's own figures. If those pass and the numbers still look strange, the problem is more likely the headset fit than the code, check the session's coverage on the Session screen first.

@@ -59,7 +59,6 @@ const server = createServer(async (req, res) => {
     if (path === "/api/status") {
       return json(res, 200, {
         mode: source.mode,
-        hasMistralKey: Boolean(env.MISTRAL_API_KEY),
         device: env.NEUROSITY_DEVICE_ID || null,
         note: "Live Crown data is not connected in this build; the Live tab runs on a mock source.",
       });
