@@ -11,7 +11,8 @@
     "log": "node collector/logger.js",
     "log:live": "MODE=live node collector/logger.js",
     "test:logger": "node test/run-tests.js",
-    "test:raw": "node test/run-raw-tests.js"
+    "test:raw": "node test/run-raw-tests.js",
+    "build": "node scripts/build-static.js"
   },
   "optionalDependencies": {
     "@neurosity/sdk": "^7.0.0",

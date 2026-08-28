@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>Session Interpreter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./interpret.css">
+<style>body{margin:0;background:#0A111C}</style>
+</head>
+<body>
+<div class="cd">
+
+  <nav class="nav"><div class="navin">
+    <span class="brand">Session<b>·</b>Interpreter</span>
+    <span class="navspace"></span>
+    <button class="exbtn" id="exall" disabled>Expand all</button>
+    <button class="exbtn" id="another" hidden>Read another</button>
+  </div></nav>
+
+  <div class="bleed"><div class="rail">
+
+    <header>
+      <p class="eyebrow">An interpreter's guide · Neurosity Crown · for GFT Labs</p>
+      <h1>Read a Crown recording</h1>
+      <p class="stand">A console export is raw voltage and nothing else: no focus, no calm, no band power. Drop one here and this works out what the console threw away, then says what it found in plain language.</p>
+      <p class="byline">Built by Samantha Lin · every figure computed in your browser from the file you dropped</p>
+    </header>
+
+    <!-- The whole app before a file exists. -->
+    <div class="drop" id="drop">
+      <h3>Drop a recording here</h3>
+      <p>A CSV exported from the Neurosity console. Eleven columns, no header row, 256 rows a second. A five-minute recording is about 13 MB and takes a moment to read.</p>
+      <button class="pick" id="pick">Choose a file</button>
+      <input type="file" id="file" accept=".csv,text/csv" hidden>
+      <p class="privacy">Your recording is read inside this browser and never uploaded. There is nowhere to upload it to.</p>
+    </div>
+
+    <div id="err" class="err" hidden></div>
+    <div id="busy" class="busy" hidden>Reading the recording…</div>
+
+    <main id="out" hidden></main>
+
+    <footer>
+      Band power, signal quality and the indicators are computed here from the raw signal, using the console's own band edges and its own 1 Hz drift removal. The indicators are not Neurosity's focus and calm scores, which are model outputs a recording does not contain. Nothing here is diagnostic. Screenshots and terminology refer to the Neurosity console (Neurosity, Inc.); this is an independent interpreter's guide, not a Neurosity product.
+    </footer>
+
+  </div></div>
+</div>
+<script type="module" src="./interpret.js"></script>
+</body>
+</html>

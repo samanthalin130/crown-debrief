@@ -39,6 +39,11 @@ export const INDICATORS = {
 };
 
 const round = (x, d = 1) => (Number.isFinite(x) ? Number(x.toFixed(d)) : null);
+/** "1st", "2nd", "3rd", so a window can be named without calling it a minute. */
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 /** Fixed one decimal, so prose never reads "10%" beside "13.7%". */
 const fx = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : "-");
 
@@ -52,6 +57,12 @@ function slope(ys) {
   let num = 0, den = 0;
   for (const i of xs) { num += (i - mx) * (ys[i] - my); den += (i - mx) ** 2; }
   return den === 0 ? NaN : num / den;
+}
+
+/** Seconds as m:ss, for labelling a window by when it started. */
+function fmtClock(sec) {
+  const m = Math.floor(sec / 60), s = Math.round(sec % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function peakOf(ys) {
@@ -129,7 +140,12 @@ export function interpret(a) {
   const focus = describeShape(focusSeries, { unit: "", scale: 1 });
   const theta = describeShape(acrossChannels(a, posterior.length ? posterior : usable, "theta"));
 
-  const mins = (i) => `minute ${i}`;
+  // A window is a minute only when it is sixty seconds long. A short recording is
+  // cut into shorter windows so there is still a shape to see, and calling those
+  // minutes would be a lie told five times a paragraph.
+  const isMinute = a.windowSec === 60;
+  const unit = isMinute ? "minute" : `${a.windowSec}-second window`;
+  const mins = (i) => (isMinute ? `minute ${i}` : `the ${ordinal(i)} ${unit}`);
   const findings = [];
 
   findings.push({
@@ -193,7 +209,7 @@ export function interpret(a) {
 
   const caveats = [
     `${usable.length} of 8 electrodes readable. A recording is only as good as its quietest channels.`,
-    `${Math.round(a.durationSec / 60)} minute${Math.round(a.durationSec / 60) === 1 ? "" : "s"} is a short recording, and one recording is not a pattern.`,
+    `${fmtClock(a.durationSec)} is a short recording, and one recording is not a pattern.`,
     `The indicators are computed from band power. They are not Neurosity's focus and calm scores, which are model outputs that an export does not contain.`,
     `Exact percentages shift with preprocessing choices. The direction and the timing of a change are far more robust than the size of it, so read the shape rather than the decimal.`,
     `Nothing here is diagnostic. The Crown is a consumer wellness device, and the honest ceiling of eight dry electrodes is state, not condition.`,
@@ -203,6 +219,9 @@ export function interpret(a) {
     ok: true, readable: true, quality,
     durationSec: a.durationSec, windowSec: a.windowSec, windowCount: a.windowCount,
     headline, findings, caveats,
+    unit, isMinute,
+    windowLabels: Array.from({ length: a.windowCount }, (_, i) =>
+      isMinute ? `min ${i + 1}` : fmtClock(i * a.windowSec)),
     indicators: {
       calm: { ...INDICATORS.calm, ...calm, series: calmSeries },
       focus: { ...INDICATORS.focus, ...focus, series: focusSeries },

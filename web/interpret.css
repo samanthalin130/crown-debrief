@@ -1,0 +1,168 @@
+/* Scoped to .cd so this drops into the site's Console Decoded page without
+   colliding with anything. Every colour here is that page's own token: the
+   interpreter is meant to read as the same document, not as a cousin of it. */
+
+.cd {
+  --ground:#0A111C; --surface:#111C2B; --surface-2:#152234; --surface-3:#1C2C40;
+  --ink:#E7ECF3; --ink-2:#A9B7CA; --ink-3:#748399;
+  --line:#223247; --line-2:#1A2838;
+  --accent:#3FB6C6; --accent-soft:#0F2A33; --accent-ink:#7FD6E1;
+  --what:#6FA3D6; --what-soft:#12243A;
+  --mean:#B592E0; --mean-soft:#211838;
+  --do:#6BC290; --do-soft:#0F2A1E;
+  --limit:#D6A557; --limit-soft:#271D0C;
+  --console:#080E18; --console-line:#203044;
+  --t-delta:#A48BDC; --t-theta:#86A2E6; --t-alpha:#55C3DC; --t-beta:#4FC9BC; --t-gamma:#A9CE8E;
+  --t-cp3:#E896B8; --t-c3:#E5A46A; --t-f5:#DCC873; --t-po3:#78CE97;
+  --t-po4:#5AC9C7; --t-f6:#79ABE0; --t-c4:#9E8CE0; --t-cp4:#CE72BC;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 15.4px 37.4px -18px rgba(0,0,0,.8);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--ink); font-family:var(--sans); font-size:17.6px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.cd *{box-sizing:border-box}
+.cd .bleed{width:100%;padding:0 clamp(22px,5vw,88px)}
+.cd .rail{max-width:1180px;margin:0 auto}
+
+.cd .t-delta{color:var(--t-delta);font-weight:600}
+.cd .t-theta{color:var(--t-theta);font-weight:600}
+.cd .t-alpha{color:var(--t-alpha);font-weight:600}
+.cd .t-beta{color:var(--t-beta);font-weight:600}
+.cd .t-gamma{color:var(--t-gamma);font-weight:600}
+.cd .t-cp3{color:var(--t-cp3);font-weight:600} .cd .t-c3{color:var(--t-c3);font-weight:600}
+.cd .t-f5{color:var(--t-f5);font-weight:600}   .cd .t-po3{color:var(--t-po3);font-weight:600}
+.cd .t-po4{color:var(--t-po4);font-weight:600} .cd .t-f6{color:var(--t-f6);font-weight:600}
+.cd .t-c4{color:var(--t-c4);font-weight:600}   .cd .t-cp4{color:var(--t-cp4);font-weight:600}
+
+.cd .nav{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 92%,transparent);
+  backdrop-filter:blur(11px);border-bottom:1px solid var(--line)}
+.cd .navin{display:flex;align-items:center;gap:13px;height:61.6px;padding:0 clamp(22px,5vw,88px);max-width:1180px;margin:0 auto}
+.cd .brand{font-family:var(--mono);font-size:14.3px;letter-spacing:.04em}
+.cd .brand b{color:var(--accent)}
+.cd .navspace{flex:1}
+.cd .exbtn{font:inherit;font-size:13.75px;background:var(--surface);border:1px solid var(--line);
+  color:var(--ink-2);border-radius:8.8px;padding:7.7px 13.2px;cursor:pointer;white-space:nowrap}
+.cd .exbtn:hover:not(:disabled){border-color:var(--accent);color:var(--accent-ink)}
+.cd .exbtn:disabled{opacity:.4;cursor:default}
+
+.cd header{padding:46px 0 8px}
+.cd .eyebrow{font-family:var(--mono);font-size:12.65px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:0 0 15.4px}
+.cd h1{font-size:clamp(30px,4.4vw,46px);line-height:1.12;letter-spacing:-.02em;margin:0 0 15px;font-weight:600}
+.cd .stand{font-size:19.8px;color:var(--ink-2);margin:0 0 13px;max-width:64ch}
+.cd .byline{font-family:var(--mono);font-size:12.65px;color:var(--ink-3);margin:0}
+
+/* The drop target. The one thing on the page before a file exists. */
+.cd .drop{margin:30px 0 8px;border:1.5px dashed var(--line);border-radius:16px;background:var(--surface);
+  padding:52px 30px;text-align:center;transition:border-color .15s,background .15s}
+.cd .drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.cd .drop h3{margin:0 0 8px;font-size:21px;font-weight:600}
+.cd .drop p{margin:0 auto 20px;color:var(--ink-2);font-size:15.4px;max-width:56ch}
+.cd .drop .pick{font:inherit;font-size:15.4px;background:var(--accent-soft);border:1px solid var(--accent);
+  color:var(--accent-ink);border-radius:10px;padding:11px 22px;cursor:pointer}
+.cd .drop .pick:hover{background:var(--accent);color:var(--console)}
+.cd .privacy{font-family:var(--mono);font-size:12.1px;color:var(--ink-3);margin:14px 0 0}
+.cd .err{margin:18px 0 0;padding:14px 16px;border-radius:10px;border:1px solid var(--limit);
+  background:var(--limit-soft);color:var(--ink);font-size:15px}
+.cd .busy{margin:26px 0;font-family:var(--mono);font-size:14px;color:var(--accent-ink)}
+
+.cd .tldr{margin:34px 0 0;padding:24.2px 0 6.6px;border-top:1px solid var(--line)}
+.cd .tldr .lbl{font-family:var(--mono);font-size:12.1px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 15.4px}
+.cd .verdict{font-size:23px;line-height:1.4;margin:0 0 20px;max-width:58ch}
+.cd .tkgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px}
+.cd .tk{background:var(--surface);border:1px solid var(--line);border-radius:12.1px;padding:16.5px 17.6px;box-shadow:var(--shadow)}
+.cd .tk .n{font-family:var(--mono);font-size:12.1px;color:var(--accent);font-weight:600;display:block;margin-bottom:7.7px}
+.cd .tk p{margin:0;font-size:15.4px;color:var(--ink-2)}
+.cd .tk b{color:var(--ink)}
+
+.cd section{margin:52px 0 0}
+.cd h2{font-size:27px;font-weight:600;letter-spacing:-.01em;margin:0 0 6px;display:flex;align-items:baseline;gap:13px}
+.cd h2 .n{font-family:var(--mono);font-size:12.1px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.cd .slede{color:var(--ink-2);font-size:16.5px;margin:0 0 22px;max-width:70ch}
+
+/* Progressive disclosure, the same row pattern the Decoded page uses. */
+.cd .rows{border:1px solid var(--line);border-radius:13px;overflow:hidden;background:var(--surface)}
+.cd .row{border-bottom:1px solid var(--line-2)}
+.cd .row:last-child{border-bottom:0}
+.cd .rowhead{display:flex;align-items:flex-start;gap:13px;padding:16.5px 18px;cursor:pointer;list-style:none;
+  transition:background .12s}
+.cd .rowhead::-webkit-details-marker{display:none}
+.cd .rowhead:hover{background:var(--surface-2)}
+.cd .row[open]>.rowhead{background:var(--surface-2)}
+.cd .rownum{font-family:var(--mono);font-size:12.1px;color:var(--accent);font-weight:600;padding-top:4px;min-width:17px}
+.cd .rowtitle{flex:1;display:flex;flex-direction:column;gap:3px}
+.cd .rowtitle .t{font-size:17.6px;font-weight:600}
+.cd .rowtitle .answer{font-size:15.4px;color:var(--ink-2)}
+.cd .chev{color:var(--ink-3);font-size:19px;line-height:1;padding-top:3px;transition:transform .15s}
+.cd .row[open] .chev{transform:rotate(90deg)}
+.cd .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:1px;background:var(--line-2);border-top:1px solid var(--line-2)}
+.cd .col{background:var(--surface);padding:16px 18px}
+.cd .col p{margin:0;font-size:15.4px;color:var(--ink-2)}
+.cd .tag{display:block;font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+.cd .what .tag{color:var(--what)} .cd .mean .tag{color:var(--mean)}
+.cd .do .tag{color:var(--do)}     .cd .limit .tag{color:var(--limit)}
+.cd .figs{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.cd .fig{font-family:var(--mono);font-size:12.4px;background:var(--console);border:1px solid var(--console-line);
+  color:var(--ink-2);border-radius:6px;padding:4px 8px}
+
+/* Electrode quality strip. Absence and artifact must not look like a reading. */
+.cd .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:11px;margin:0 0 22px}
+.cd .chip{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 14px}
+.cd .chip .nm{font-family:var(--mono);font-size:14.3px;font-weight:600;display:block;margin-bottom:4px}
+.cd .chip .uv{font-family:var(--mono);font-size:19px;display:block;color:var(--ink)}
+.cd .chip .lv{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-top:5px}
+.cd .chip.clean{border-color:color-mix(in srgb,var(--do) 55%,var(--line))}
+.cd .chip.clean .lv{color:var(--do)}
+.cd .chip.marginal{border-color:color-mix(in srgb,var(--limit) 50%,var(--line))}
+.cd .chip.marginal .lv{color:var(--limit)}
+.cd .chip.artifact{background:repeating-linear-gradient(135deg,var(--surface),var(--surface) 6px,var(--surface-2) 6px,var(--surface-2) 12px)}
+.cd .chip.artifact .uv,.cd .chip.artifact .lv{color:var(--ink-3)}
+.cd .chip.flat{opacity:.5}
+.cd .chip.flat .lv{color:var(--ink-3)}
+
+.cd figure{margin:0 0 22px;background:var(--console);border:1px solid var(--console-line);border-radius:13px;padding:20px 18px 14px}
+.cd figure .cap{font-family:var(--mono);font-size:12.1px;color:var(--ink-3);display:block;margin-bottom:14px}
+.cd .legend{display:flex;flex-wrap:wrap;gap:15px;margin-top:12px;font-family:var(--mono);font-size:12.4px;color:var(--ink-2)}
+.cd .legend i{display:inline-block;width:13px;height:2.5px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.cd .chart{width:100%;height:auto;overflow:visible}
+.cd .chart .grid{stroke:var(--console-line);stroke-width:1}
+.cd .chart .axis{fill:var(--ink-3);font-family:var(--mono);font-size:11px}
+.cd .chart .ln{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.cd .chart .dot{stroke:var(--console);stroke-width:1.5}
+
+.cd table{width:100%;border-collapse:collapse;font-size:15px;background:var(--surface);
+  border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.cd th{text-align:right;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.cd th:first-child,.cd td:first-child{text-align:left}
+.cd td{padding:11px 14px;border-bottom:1px solid var(--line-2);font-family:var(--mono);font-size:14px;color:var(--ink-2)}
+.cd tr:last-child td{border-bottom:0}
+.cd tr.binned td{color:var(--ink-3)}
+.cd tr.binned td:first-child{opacity:.65}
+.cd .tblnote{font-size:14.3px;color:var(--ink-3);margin:12px 0 0;max-width:74ch}
+
+/* Inline explainers: any term a first-time reader might not know is a button. */
+.cd .ex{font:inherit;background:none;border:0;padding:0;cursor:pointer;color:inherit;
+  border-bottom:1px dashed var(--ink-3);line-height:inherit}
+.cd .ex:hover{border-bottom-color:var(--accent);color:var(--accent-ink)}
+.cd .expanel{margin:13px 0 0;padding:14px 16px;border-radius:10px;background:var(--accent-soft);
+  border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);font-size:15px;color:var(--ink-2)}
+.cd .expanel strong{color:var(--ink);display:block;margin-bottom:5px;font-family:var(--mono);font-size:13px}
+.cd .expanel[hidden]{display:none}
+
+.cd .limits{background:var(--limit-soft);border:1px solid color-mix(in srgb,var(--limit) 34%,transparent);
+  border-radius:13px;padding:20px 22px}
+.cd .limits h3{margin:0 0 12px;font-size:17.6px;font-weight:600;color:var(--limit)}
+.cd .limits ul{margin:0;padding-left:19px}
+.cd .limits li{margin:0 0 8px;font-size:15.4px;color:var(--ink-2)}
+.cd .limits li:last-child{margin-bottom:0}
+
+.cd footer{margin:58px 0 40px;padding-top:22px;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:12.4px;color:var(--ink-3);max-width:80ch}
+.cd .actions{display:flex;flex-wrap:wrap;gap:11px;margin:26px 0 0}
+
+@media (max-width:640px){
+  .cd{font-size:16.5px}
+  .cd .drop{padding:36px 18px}
+  .cd .cols{grid-template-columns:1fr}
+}

@@ -302,6 +302,38 @@ console.log("\ninterpretation");
     ok(/minute 3/.test(r.headline), `headline was: ${r.headline}`);
   });
 
+  t("does not call a ten second window a minute", () => {
+    // A recording shorter than about 90 seconds is cut into shorter windows so
+    // there is still a shape to see. Naming those minutes would be a lie repeated
+    // in every sentence of the reading.
+    const n = FS * 60, chans = {};
+    CROWN_CHANNELS.forEach((c, i) => { chans[c] = c === "PO4" ? noise(n, 30, i + 5) : sine(10, 5000, n); });
+    const a = analyseRecording(
+      { ok: true, channels: chans, order: [...CROWN_CHANNELS], sampleRate: FS, n, durationSec: 60, startMs: 0, warnings: [], timing: {} },
+      { windowSec: 10 },
+    );
+    const r = interpret(a);
+    eq(r.isMinute, false);
+    eq(r.unit, "10-second window");
+    ok(!/minute/.test(JSON.stringify(r.findings)), "no finding may say minute");
+    ok(!/minute/.test(r.headline), `headline said: ${r.headline}`);
+    eq(r.windowLabels.length, 6);
+    eq(r.windowLabels[0], "0:00");
+    eq(r.windowLabels[1], "0:10");
+  });
+
+  t("does call a sixty second window a minute", () => {
+    const n = FS * 300, chans = {};
+    CROWN_CHANNELS.forEach((c, i) => { chans[c] = c === "PO4" ? noise(n, 30, i + 6) : sine(10, 5000, n); });
+    const r = interpret(analyseRecording(
+      { ok: true, channels: chans, order: [...CROWN_CHANNELS], sampleRate: FS, n, durationSec: 300, startMs: 0, warnings: [], timing: {} },
+      { windowSec: 60 },
+    ));
+    eq(r.isMinute, true);
+    eq(r.unit, "minute");
+    eq(r.windowLabels[2], "min 3");
+  });
+
   t("never calls its indicators Neurosity's scores", () => {
     const r = interpret(mk((c) => (c === "PO4" ? noise(FS * 300, 30, 9) : sine(10, 5000, FS * 300))));
     const text = JSON.stringify(r);

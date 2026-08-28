@@ -10,3 +10,5 @@ web/search-index.json
 # the expected values they check against live in test/expected/ and are committed,
 # because those are already published figures rather than raw brain data.
 test/fixtures/*.csv
+web/*.csv
+dist/
