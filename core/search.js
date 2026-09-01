@@ -60,6 +60,13 @@ export function buildIndex(chunks) {
  * What separates them is coverage. A question about these notes has most of its
  * content words somewhere in them; an off-topic one has almost none. Below half,
  * the guide has nothing to say and should say so rather than answer anyway.
+ *
+ * The floor is INCLUSIVE: exactly half is answered, not refused. A two-word
+ * question with one word matched ("alpha lately") is a real question about a term
+ * the notes cover, and refusing it would be the wrong call. Nothing off-topic
+ * measured above a third, so admitting the boundary costs nothing. The comparison
+ * multiplies rather than divides so the boundary is exact rather than a float
+ * rounding away from itself.
  */
 const MIN_QUERY_COVERAGE = 0.5;
 
@@ -68,7 +75,7 @@ export function search(index, query, limit = 4) {
   if (!qTerms.length) return [];
 
   const known = qTerms.filter((t) => index.df.has(t)).length;
-  if (known / qTerms.length < MIN_QUERY_COVERAGE) return [];
+  if (known < qTerms.length * MIN_QUERY_COVERAGE) return [];
 
   const k1 = 1.4, b = 0.75;
 

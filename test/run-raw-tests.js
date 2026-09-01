@@ -421,7 +421,8 @@ console.log("\nagainst a real Crown recording");
 --------------------------------------------------------------------------- */
 console.log("\nthe guide in the static build");
 {
-  const { buildIndex } = await import("../core/search.js");
+  const searchMod = await import("../core/search.js");
+  const { buildIndex } = searchMod;
   const { ask } = await import("../core/guide.js");
   const distIndex = join(ROOT, "dist", "search-index.js");
 
@@ -452,6 +453,19 @@ console.log("\nthe guide in the static build");
       eq(r.kind, "notes", `expected a notes answer, got ${r.kind}`);
       ok(/alpha/i.test(r.text), "the answer should be about alpha");
       ok(r.sources.length > 0 && r.sources[0].title, "every answer names its source");
+    });
+
+    // The boundary is a decision, not an accident: exactly half the question's
+    // content words matched is answered, not refused. Pinned here so a later
+    // change to the comparison cannot flip it silently.
+    t("answers a question sitting exactly on the coverage floor", () => {
+      const terms = searchMod.tokenize("alpha bitcoin");
+      const matched = terms.filter((x) => index.df.has(x)).length;
+      eq(terms.length, 2, `expected 2 content words, got ${terms.join(",")}`);
+      eq(matched, 1, "expected exactly one of the two to be in the notes");
+      const r = askAsDemoDoes("alpha bitcoin");
+      eq(r.kind, "notes", "a question exactly on the floor should be answered");
+      ok(r.sources.length > 0, "and it should still cite its source");
     });
 
     t("refuses a question the notes do not cover, rather than guessing", () => {
