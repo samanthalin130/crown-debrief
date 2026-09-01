@@ -1,5 +1,6 @@
 // Zero-dependency test runner. `npm test`.
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCsv } from "../core/csv.js";
@@ -18,8 +19,15 @@ const t = (name, fn) => {
 const eq = (a, b, m = "") => { if (a !== b) throw new Error(`${m} expected ${b}, got ${a}`); };
 const ok = (c, m) => { if (!c) throw new Error(m || "expected truthy"); };
 
+// A fresh clone has no data/ at all, because recordings are gitignored. Generate
+// the synthetic week rather than making `npm test` depend on running another
+// command first: a test suite that fails on a clean clone reads as a broken repo.
+if (!existsSync(join(ROOT, "data")) || !readdirSync(join(ROOT, "data")).some((f) => f.endsWith(".csv"))) {
+  console.log("  no sample data found, generating it first");
+  execFileSync(process.execPath, [join(ROOT, "scripts", "make-sample-data.js")], { stdio: "ignore" });
+}
 const files = readdirSync(join(ROOT, "data")).filter((f) => f.endsWith(".csv"));
-ok(files.length > 0, "no sample data - run `npm run sample` first");
+ok(files.length > 0, "no sample data, and generating it did not produce any");
 const { rows } = parseCsv(readFileSync(join(ROOT, "data", files[0]), "utf8"));
 
 console.log("\ncsv");

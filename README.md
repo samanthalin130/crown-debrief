@@ -24,7 +24,7 @@ npm test      # 75 + 41 checks pass; 4 skip, see below
 npm run build # writes dist/, a static site with no backend
 ```
 
-Open `dist/index.html` through any static file server and the interpreter is there, guide included. There is nothing to install for any of that: it runs on Node alone.
+Open `dist/index.html` through any static file server and the interpreter is there, guide included. There is nothing to install for any of that: it runs on Node alone, and `npm test` generates the synthetic sample data it needs on a first run.
 
 Four checks skip on a clean clone. They run the pipeline against a real Crown recording, and real recordings are deliberately not in version control, so the checks say so and step aside rather than failing. With the recordings present the raw suite runs 45 rather than 41, for 120 in total.
 
