@@ -20,13 +20,15 @@ Every command below was run from a fresh `git clone` into an empty directory bef
 ```
 git clone https://github.com/samanthalin130/crown-debrief.git
 cd crown-debrief
-npm test      # 75 + 41 checks pass; 4 skip, see below
 npm run build # writes dist/, a static site with no backend
+npm test      # 75 + 41 checks pass, 4 skip, see below
 ```
+
+Build before test, because four of the checks inspect the built output: they assert the guide ships its search index as a script tag rather than fetching it, which is what keeps the deployed page free of network calls. Run them the other way round and those four skip instead.
 
 Open `dist/index.html` through any static file server and the interpreter is there, guide included. There is nothing to install for any of that: it runs on Node alone, and `npm test` generates the synthetic sample data it needs on a first run.
 
-Four checks skip on a clean clone. They run the pipeline against a real Crown recording, and real recordings are deliberately not in version control, so the checks say so and step aside rather than failing. With the recordings present the raw suite runs 45 rather than 41, for 120 in total.
+The four checks that skip on a clean clone run the pipeline against a real Crown recording, and real recordings are deliberately not in version control, so they say so and step aside rather than failing. With the recordings present the raw suite runs 45 rather than 41, for 120 in total.
 
 To see the debrief rather than the interpreter, `npm run sample` writes a synthetic week, labelled synthetic everywhere it appears, and `npm start` serves the dev panel.
 
