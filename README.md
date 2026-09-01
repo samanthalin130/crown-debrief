@@ -1,43 +1,34 @@
-# Session Debrief
+# Crown Debrief
 
-Two tools for reading what a [Neurosity Crown](https://neurosity.co/) EEG headset
-recorded, built for people who have never encountered EEG before.
+Reads what a [Neurosity Crown](https://neurosity.co/) EEG headset recorded and says what happened in it, in plain English, with no AI model anywhere in the loop.
 
-Independent research using hardware loaned by the GFT Labs Digital Innovation Lab.
+This is one half of independent research on a Crown headset loaned by the GFT Labs Digital Innovation Lab: 219 training trials audited and 248,320 samples of raw voltage read from the samples up. The write-up of what that produced is at [crown-analysis-tawny.vercel.app](https://crown-analysis-tawny.vercel.app/), and the tool in this repository runs live in a browser at [crown-debrief.vercel.app](https://crown-debrief.vercel.app/).
 
----
+**[Try it now](https://crown-debrief.vercel.app/)** with no install: drop in a CSV exported from the Neurosity console and read the session, or ask the built-in guide how any of it works. Nothing uploads, because there is nowhere for it to go.
 
-## What I built
+| | |
+| --- | --- |
+| Checks | **120** across two suites, all green |
+| Agreement with the Neurosity console | **within 0.1%** on per-channel signal quality, on a real five-minute recording |
+| Network calls in the deployed build | **zero**: no fetch, no XHR, no WebSocket, no beacon |
+| Dependencies to run it | **none**; the interpreter and its guide are plain JavaScript on Node |
 
-Two separate tools that read two different files, for two different situations.
-They share their statistics and their vocabulary, and nothing else.
+## Quickstart
 
-**The interpreter** reads a **CSV exported from the Neurosity console**. That file
-is raw voltage and nothing else: 256 rows a second, one column per electrode, no
-header row, and no focus, calm or band power, because the console does not write
-them into an export. So the interpreter computes them. It works out how much each
-of the eight electrodes was swinging, throws out the ones that were picking up
-muscle rather than brain rhythm, measures band power per electrode in 2 second
-windows, and reports minute by minute what the readable channels did. Then it says
-so in plain English. It runs entirely inside the browser, with no server, no
-account and no key, and the file never leaves the machine it was dropped on.
+Every command below was run from a fresh `git clone` into an empty directory before it was written here.
 
-**The debrief** reads a **CSV written by the focus logger**, a small recorder
-included here as `collector/logger.js`. That is a different file: one row every two
-seconds, with focus and calm already computed on the headset and band power
-averaged across all eight electrodes before it was written. Because those numbers
-are already there, the debrief does no signal processing. It does the things the
-interpreter cannot: how a session compares with your own normal learned across ten
-sessions, your longest focused stretches with clock times, how the session split
-across named states, and a guide that answers questions from a set of notes and
-says where every answer came from.
+```
+git clone https://github.com/samanthalin130/crown-debrief.git
+cd crown-debrief
+npm test      # 75 + 41 checks pass; 4 skip, see below
+npm run build # writes dist/, a static site with no backend
+```
 
-**No AI model writes any of it.** Every sentence in either tool is assembled from a
-number the code computed, which means both work with no key, no network and no
-cost, and any claim either makes can be checked against the file. There is a **Copy
-summary** button for exactly this reason: it puts a compact, labelled summary on
-your clipboard, ready to paste into whichever assistant you prefer. The tools own
-the numbers; a model can own the words.
+Open `dist/index.html` through any static file server and the interpreter is there, guide included. There is nothing to install for any of that: it runs on Node alone.
+
+Four checks skip on a clean clone. They run the pipeline against a real Crown recording, and real recordings are deliberately not in version control, so the checks say so and step aside rather than failing. With the recordings present the raw suite runs 45 rather than 41, for 120 in total.
+
+To see the debrief rather than the interpreter, `npm run sample` writes a synthetic week, labelled synthetic everywhere it appears, and `npm start` serves the dev panel.
 
 ## The two things that catch everyone out
 
@@ -54,28 +45,6 @@ And a third that matters more than either: **a poor signal produces confident-lo
 numbers.** An electrode sitting on hair still emits values. Both tools check signal
 quality before anything else, and the interpreter will refuse to read a recording in
 which no electrode was quiet enough to trust.
-
-## Try it
-
-You need Node. You do not need the headset, an API key, or `npm install`.
-
-```bash
-npm run sample     # writes a synthetic week into data/, for the debrief
-npm start          # open the address it prints
-```
-
-- The debrief is at `/`.
-- The interpreter is at `/interpret.html`, and needs a console CSV export to read.
-
-The synthetic data is labelled as synthetic everywhere it appears, so it cannot be
-mistaken for a real reading. It exists for the debrief, which needs ten sessions
-before it will compare anything. The interpreter does not use it and cannot read it.
-
-To build the interpreter as a folder of files with no server behind it:
-
-```bash
-npm run build      # writes dist/, eight files, deployable anywhere static
-```
 
 ## Is the interpreter verified?
 
@@ -212,24 +181,12 @@ web/
 scripts/build-static.js   gathers the interpreter into dist/, with a completeness check
 server.js                 zero-dependency dev server, needed by the debrief only
 test/run-tests.js         75 checks on the debrief
-test/run-raw-tests.js     41 checks on the interpreter
+test/run-raw-tests.js     45 checks on the interpreter, 4 needing a real recording
 ```
 
 Live telemetry in the debrief uses Server-Sent Events rather than WebSockets.
 Telemetry only travels one way, which is what SSE is for; it needs no library and
 reconnects on its own.
-
-## Tests
-
-```bash
-npm test           # both suites, 116 checks
-npm run test:raw   # the interpreter only
-```
-
-The interpreter's suite includes checks against a real recording. Those files are
-not in version control, so those checks **skip** rather than fail on a fresh clone,
-and say why. The figures they check against are committed, in `test/expected/`,
-because those are already-published numbers rather than raw brain data.
 
 ## Recording your own sessions
 
@@ -265,3 +222,23 @@ Real recordings are excluded from version control by `.gitignore`.
 
 *Built by Samantha Lin as part of an independent exploration of brain-computer
 interfaces and AI.*
+
+## What this deliberately does not do
+
+- **It does not use an AI model.** Every sentence is assembled from a number the code computed, so any claim it makes can be checked against the file it read. The guide retrieves a passage from the project notes and names it; when it finds nothing it says so instead of answering.
+- **It does not upload anything.** There is no account, no key and no server, and the deployed build contains no network primitive at all.
+- **It does not diagnose.** Eight dry electrodes on a consumer headset report state, not condition.
+- **It has never seen a live headset.** Everything verified here came from exported files. The collector's live mode is written and unrun.
+
+## How this was built
+
+Designed, specified, and verified by Samantha Lin. Implementation was AI-assisted under her direction, with adversarial review and automated checks gating every shipped claim.
+
+## Related
+
+- [crown-focus-logger](https://github.com/samanthalin130/crown-focus-logger), the recorder that writes the CSV the debrief reads.
+- [The research write-up](https://crown-analysis-tawny.vercel.app/), including the session analyses and the findings.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
