@@ -166,3 +166,36 @@
   .cd .drop{padding:36px 18px}
   .cd .cols{grid-template-columns:1fr}
 }
+
+/* ---------------- the guide ----------------
+   Same palette as the rest of the page. The panel stays hidden until the index
+   global is present, so a build without it degrades to the interpreter alone. */
+.guide{margin:38px 0 0;padding:26px 0 0;border-top:1px solid var(--line)}
+.guide h2{margin:0 0 6px;font-size:19px;letter-spacing:-.01em;color:var(--ink)}
+.guide .glede{margin:0 0 18px;max-width:64ch;font-size:14px;line-height:1.65;color:var(--ink-2)}
+.gchat{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto;padding:4px 2px}
+.gmsg{max-width:70ch;padding:12px 14px;border:1px solid var(--line);border-radius:10px;
+      background:var(--surface);font-size:14px;line-height:1.65;color:var(--ink-2)}
+.gmsg b{color:var(--ink);font-weight:600}
+.gmsg code{padding:1px 5px;border-radius:4px;background:var(--surface-3);
+           font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:var(--accent-ink)}
+.gmsg ul{margin:8px 0 0;padding-left:20px}
+.gmsg li{margin:3px 0}
+.gmsg.me{align-self:flex-end;background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.gsrc{display:block;margin-top:9px;padding-top:8px;border-top:1px solid var(--line-2);
+      font-size:12px;color:var(--ink-3)}
+.gask{display:flex;gap:8px;margin-top:14px}
+.gask input{flex:1;min-width:0;padding:11px 13px;border:1px solid var(--line);border-radius:8px;
+            background:var(--surface-2);color:var(--ink);font:inherit;font-size:14px}
+.gask input:focus{outline:none;border-color:var(--accent)}
+.gask input::placeholder{color:var(--ink-3)}
+.gask button{padding:11px 20px;border:1px solid var(--accent);border-radius:8px;
+             background:var(--accent-soft);color:var(--accent-ink);font:inherit;font-size:14px;
+             font-weight:600;cursor:pointer;transition:background .15s ease}
+.gask button:hover{background:var(--accent);color:var(--ground)}
+.gstarters{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.gstarters button{padding:7px 12px;border:1px solid var(--line);border-radius:999px;
+                  background:var(--surface-2);color:var(--ink-2);font:inherit;font-size:12.5px;
+                  cursor:pointer;transition:border-color .15s ease,color .15s ease}
+.gstarters button:hover{border-color:var(--accent);color:var(--accent-ink)}
+@media (max-width:640px){.gmsg{max-width:100%}.gask{flex-wrap:wrap}.gask input{width:100%}}

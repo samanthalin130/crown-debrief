@@ -92,3 +92,31 @@ Every figure above describes what is in three files. It does not establish that 
 recordings measured what they were named for. That would need a controlled protocol,
 repeat sessions, and a real headset to run them on. See the "what a professional
 should verify next" section of the README.
+
+## The guide in the static demo
+
+The guide now ships with the demo. Two things about how, because both were
+decisions rather than defaults.
+
+The search index is handed to the page as a script-tag global
+(`window.CROWN_SEARCH_INDEX`) rather than requested over HTTP. The demo's
+serverless claim is verified by grepping the built output for every network
+primitive, and that claim is made in writing on the website, so the index had to
+arrive without a request. A test asserts both halves: that the built file assigns
+the global, and that the shipped guide contains no network primitive.
+
+The refusal behaviour needed a guard before it was true. BM25 ranks whatever is
+least bad, so it always returns something: "what will the stock market do next
+quarter" matched a section because "next" appears in it once. Rarity cannot
+separate that case, because "next" is rarer in these notes than "alpha" is. What
+separates them is query coverage. A real question about these notes has most of
+its content words somewhere in them, and an off-topic one has almost none. On
+topic questions measured 0.75 and above, off topic ones 0.33 and below, so the
+floor sits at half. Below it the guide says it cannot find anything rather than
+answering anyway.
+
+Session-aware answers are not wired in. The interpreter analyses a raw voltage
+export, and `answerFromData` expects the dev panel's shape (peaks, slumps,
+coverage, per-hour means) computed from the logger's focus and calm CSV. Those
+are different data models and joining them is not a wiring job. The demo answers
+from the project notes.

@@ -26,14 +26,14 @@ export function findings(a) {
     out.push({
       key: "coverage",
       severity: a.coverage < 0.5 ? "high" : "medium",
-      text: `Only ${pct(a.coverage)} of this session had a usable signal, so treat everything below as provisional. That usually means the electrodes weren't reaching your scalp — the fix is a snugger fit and parting hair under the sensors.`,
+      text: `Only ${pct(a.coverage)} of this session had a usable signal, so treat everything below as provisional. That usually means the electrodes weren't reaching your scalp. The fix is a snugger fit and parting hair under the sensors.`,
     });
   }
   if (a.recordedMs < 20 * MIN) {
     out.push({
       key: "short",
       severity: "high",
-      text: `This session is only ${fmtDuration(a.recordedMs)} long. That's too short to say much about patterns — an hour or more gives the numbers something to work with.`,
+      text: `This session is only ${fmtDuration(a.recordedMs)} long. That's too short to say much about patterns, and an hour or more gives the numbers something to work with.`,
     });
   }
   if (a.gaps.length) {
@@ -52,14 +52,14 @@ export function narrative(a) {
 
   const date = new Date(a.startMs).toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" });
   p.push(
-    `${date}, ${fmtClock(a.startMs)} to ${fmtClock(a.endMs)} — ${fmtDuration(a.recordedMs)} recorded, ` +
+    `${date}, ${fmtClock(a.startMs)} to ${fmtClock(a.endMs)}, ${fmtDuration(a.recordedMs)} recorded, ` +
     `${a.rows.toLocaleString()} readings, ${pct(a.coverage)} of them with a signal worth trusting.`
   );
 
   // What "normal" looked like today.
   p.push(
     `Your focus readings sat around ${a.focus.p50.toFixed(2)} for most of it, mostly between ${a.focus.p10.toFixed(2)} ` +
-    `and ${a.focus.p90.toFixed(2)}. Everything here is measured against that range — ` +
+    `and ${a.focus.p90.toFixed(2)}. Everything here is measured against that range, ` +
     `rather than against a fixed number, because what counts as high focus differs enormously between people.`
   );
 
@@ -72,11 +72,11 @@ export function narrative(a) {
             `${fmtDuration(best.durationMs)} of it, well above your usual level.`;
     if (a.peaks.length > 1) {
       s += ` There ${a.peaks.length === 2 ? "was one other" : `were ${a.peaks.length - 1} others`}: ` +
-           a.peaks.slice(1).map((k) => `${fmtClock(k.startMs)}–${fmtClock(k.endMs)} (${fmtDuration(k.durationMs)})`).join(", ") + ".";
+           a.peaks.slice(1).map((k) => `${fmtClock(k.startMs)} to ${fmtClock(k.endMs)} (${fmtDuration(k.durationMs)})`).join(", ") + ".";
     }
     p.push(s);
   } else {
-    p.push(`Nothing held above your usual level long enough to count as a focused stretch — the session stayed fairly flat.`);
+    p.push(`Nothing held above your usual level long enough to count as a focused stretch, and the session stayed fairly flat.`);
   }
 
   // Slumps.
@@ -88,7 +88,7 @@ export function narrative(a) {
       (a.slumps.length > 1 ? `, and there ${a.slumps.length === 2 ? "was one more" : `were ${a.slumps.length - 1} more`} like it.` : ".")
     );
   } else {
-    p.push(`No sustained dips — nothing dropped below your usual level for long enough to count.`);
+    p.push(`No sustained dips. Nothing dropped below your usual level for long enough to count.`);
   }
 
   // Time in state.
@@ -127,7 +127,7 @@ export function suggestion(a) {
 
   const cov = f.find((x) => x.key === "coverage");
   if (cov && cov.severity === "high") {
-    return { headline: "Fix the fit before reading anything into this", body: "Over half the session had no usable signal. Reseat the headset, part your hair under the electrodes, and check the signal indicator before your next run — the numbers can't mean much until that's solid." };
+    return { headline: "Fix the fit before reading anything into this", body: "Over half the session had no usable signal. Reseat the headset, part your hair under the electrodes, and check the signal indicator before your next run. The numbers can't mean much until that's solid." };
   }
   if (f.some((x) => x.key === "short")) {
     return { headline: "Record for longer next time", body: "Under twenty minutes doesn't give the patterns room to appear. Try wearing it through a full work block." };
@@ -135,7 +135,7 @@ export function suggestion(a) {
   if (a.peaks.length) {
     const best = a.peaks[0];
     return {
-      headline: `Protect ${fmtClock(best.startMs)}–${fmtClock(best.endMs)}`,
+      headline: `Protect ${fmtClock(best.startMs)} to ${fmtClock(best.endMs)}`,
       body: `That was your longest good stretch today, ${fmtDuration(best.durationMs)} of it. If you can put your hardest task there tomorrow and keep meetings out of it, you're working with your own pattern instead of against it.`,
     };
   }
@@ -143,7 +143,7 @@ export function suggestion(a) {
     const worst = a.slumps[0];
     return {
       headline: `Something happened around ${fmtClock(worst.startMs)}`,
-      body: `That's your clearest dip. Add a note saying what you were doing then — after a few sessions those notes are what turn a chart into an explanation.`,
+      body: `That's your clearest dip. Add a note saying what you were doing then. After a few sessions those notes are what turn a chart into an explanation.`,
     };
   }
   return { headline: "Nothing stood out today", body: "The session stayed fairly level throughout. That's a perfectly normal result, and more sessions will give it something to compare against." };

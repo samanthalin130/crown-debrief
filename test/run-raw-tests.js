@@ -411,5 +411,57 @@ console.log("\nagainst a real Crown recording");
   }
 }
 
+/* ---------------------------------------------------------------------------
+   The guide, as the static demo ships it.
+
+   Three things can silently break the demo's guide: the build can stop emitting
+   the index, the index can arrive in a form the browser cannot read without a
+   network request, and the guide can start inventing answers when it finds
+   nothing. One check each.
+--------------------------------------------------------------------------- */
+console.log("\nthe guide in the static build");
+{
+  const { buildIndex } = await import("../core/search.js");
+  const { ask } = await import("../core/guide.js");
+  const distIndex = join(ROOT, "dist", "search-index.js");
+
+  if (!existsSync(distIndex)) {
+    skipped("the static build ships the search index", "run npm run build first");
+  } else {
+    const src = readFileSync(distIndex, "utf8");
+
+    t("ships the index as a script-tag global, not as a fetched file", () => {
+      ok(src.startsWith("window.CROWN_SEARCH_INDEX = "), "index must assign a global");
+      const built = readFileSync(join(ROOT, "dist", "guide-panel.js"), "utf8");
+      ok(!/fetch\(|XMLHttpRequest|new WebSocket|sendBeacon|EventSource/.test(built),
+        "the shipped guide must not reach the network");
+    });
+
+    // Evaluate the global the way the browser does, then answer through it.
+    const scope = {};
+    new Function("window", src)(scope);
+    const index = buildIndex(scope.CROWN_SEARCH_INDEX.chunks);
+
+    // The same arguments web/guide-panel.js passes, so this tests what ships.
+    const askAsDemoDoes = (q) =>
+      ask(q, { index, analysis: null, shaping: { depth: "full" }, adaptive: true });
+
+    t("answers a question the notes cover, and cites the note", () => {
+      ok(scope.CROWN_SEARCH_INDEX.chunks.length > 0, "the index should not be empty");
+      const r = askAsDemoDoes("What is alpha?");
+      eq(r.kind, "notes", `expected a notes answer, got ${r.kind}`);
+      ok(/alpha/i.test(r.text), "the answer should be about alpha");
+      ok(r.sources.length > 0 && r.sources[0].title, "every answer names its source");
+    });
+
+    t("refuses a question the notes do not cover, rather than guessing", () => {
+      const r = askAsDemoDoes("What will the stock market do next quarter?");
+      ok(r.kind === "no-answer" || r.sources.length === 0,
+        `expected a refusal, got ${r.kind} with ${r.sources.length} sources`);
+      ok(/can't find|cannot find|rather say so/i.test(r.text), "the refusal should say so plainly");
+    });
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed${skip ? `, ${skip} skipped` : ""}`);
 process.exit(fail ? 1 : 0);

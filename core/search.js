@@ -52,9 +52,24 @@ export function buildIndex(chunks) {
   return { docs, df, avgLen, N: docs.length };
 }
 
+/**
+ * How much of the question the notes actually know about. BM25 ranks whatever is
+ * least bad, so on its own it will always return something: "what will the stock
+ * market do next quarter" matched a section because "next" happens to appear in
+ * it once. Rarity cannot separate those, since "next" is rarer here than "alpha".
+ * What separates them is coverage. A question about these notes has most of its
+ * content words somewhere in them; an off-topic one has almost none. Below half,
+ * the guide has nothing to say and should say so rather than answer anyway.
+ */
+const MIN_QUERY_COVERAGE = 0.5;
+
 export function search(index, query, limit = 4) {
   const qTerms = tokenize(query);
   if (!qTerms.length) return [];
+
+  const known = qTerms.filter((t) => index.df.has(t)).length;
+  if (known / qTerms.length < MIN_QUERY_COVERAGE) return [];
+
   const k1 = 1.4, b = 0.75;
 
   const scored = index.docs.map((d) => {
